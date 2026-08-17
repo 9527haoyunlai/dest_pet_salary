@@ -1522,14 +1522,23 @@ MVP 设置至少包括：
 - 工资配置与日历 Tauri commands；
 - 最小配置 / 日历调试区。
 
-## Phase 4B — React Product UI
+## Phase 4B.1 — React Product UI Architecture & Functional UI
 
 完成：
 
 - 今日/周期钱包；
 - 显示口径切换；
 - 工作状态；
-- 设置。
+- 月份日历网格；
+- 设置；
+- 离线钱袋领取；
+- PixiJS 稳定占位容器；
+- Loading / Error / Retry；
+- React 功能测试。
+
+## Phase 4B.2 — PVZ Visual Skin
+
+在不改变 Phase 4B.1 功能边界和财务逻辑的前提下，完成 PVZ 风格视觉皮肤。
 
 ## Phase 5 — PixiJS Scene
 
