@@ -1500,7 +1500,18 @@ MVP 设置至少包括：
 - 启动 reconcile；
 - 幂等测试。
 
-## Phase 4 — 最小 React UI
+## Phase 3.5 — Tauri Application API / Frontend Bridge
+
+完成：
+
+- 统一 AppSnapshot；
+- Tauri command API；
+- Rust / TypeScript DTO；
+- React 只读后端权威数据；
+- 最小开发调试区；
+- command / application service 测试。
+
+## Phase 4 — React Product UI
 
 完成：
 
@@ -1509,7 +1520,7 @@ MVP 设置至少包括：
 - 工作状态；
 - 设置。
 
-## Phase 5 — Pixi 草坪原型
+## Phase 5 — PixiJS Scene
 
 先用色块或占位资产：
 
@@ -1523,7 +1534,7 @@ MVP 设置至少包括：
 
 不要在会计逻辑没稳定前花大量时间调美术。
 
-## Phase 6 — 接入用户下载的 PVZ 资源
+## Phase 6 — PVZ Assets + Animation
 
 - 扫描；
 - manifest；
@@ -1531,7 +1542,7 @@ MVP 设置至少包括：
 - 动画；
 - SFX。
 
-## Phase 7 — 轻游戏玩法
+## Phase 7 — Sun / Peashooter / Zombie Loop
 
 - 阳光；
 - 向日葵；

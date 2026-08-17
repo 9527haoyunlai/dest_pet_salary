@@ -13,6 +13,7 @@ chrono = "0.4"
 chrono-tz = "0.10"
 rust_decimal = "1"
 rusqlite = { version = "0.40.2", default-features = false, features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
 tauri = { version = "2", features = [] }
 thiserror = "2"
 uuid = { version = "1", features = ["v4"] }

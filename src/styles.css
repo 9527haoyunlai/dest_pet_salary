@@ -32,9 +32,9 @@ input {
 }
 
 .status-card {
-  width: min(34rem, 100%);
-  padding: 3rem;
-  text-align: center;
+  width: min(44rem, 100%);
+  padding: 2rem;
+  text-align: left;
   background: rgb(10 24 14 / 70%);
   border: 1px solid rgb(184 223 168 / 25%);
   border-radius: 1rem;
@@ -52,13 +52,55 @@ input {
 
 h1 {
   margin: 0;
-  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  font-size: clamp(2rem, 6vw, 3.5rem);
   line-height: 1;
 }
 
-.status-card > p:last-child {
-  margin: 1.25rem 0 0;
-  color: #d4e9cf;
-  font-size: 1.1rem;
+.debug-grid {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) minmax(0, 2fr);
+  gap: 0.55rem 1rem;
+  margin: 2rem 0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.86rem;
 }
 
+.debug-grid dt {
+  color: #a8caa0;
+}
+
+.debug-grid dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.loading,
+.error-message {
+  margin: 2rem 0;
+}
+
+.error-message {
+  color: #ffb4a8;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.debug-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.debug-actions button {
+  padding: 0.65rem 1rem;
+  color: #eff8ee;
+  cursor: pointer;
+  background: #315c39;
+  border: 1px solid #77a67c;
+  border-radius: 0.45rem;
+}
+
+.debug-actions button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}

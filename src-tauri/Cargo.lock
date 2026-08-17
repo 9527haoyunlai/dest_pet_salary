@@ -2841,6 +2841,7 @@ dependencies = [
  "rusqlite",
  "rust_decimal",
  "rust_decimal_macros",
+ "serde",
  "tauri",
  "tauri-build",
  "tempfile",

@@ -176,6 +176,32 @@ impl SqliteRepository {
             .optional()?)
     }
 
+    pub fn set_settings(
+        &mut self,
+        settings: &[(String, String)],
+        updated_at: DateTime<Utc>,
+    ) -> Result<(), PersistenceError> {
+        if settings.iter().any(|(key, _)| key.trim().is_empty()) {
+            return Err(PersistenceError::EmptySettingKey);
+        }
+
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        for (key, value) in settings {
+            transaction.execute(
+                "INSERT INTO app_settings(setting_key, setting_value, updated_at)
+                 VALUES (?1, ?2, ?3)
+                 ON CONFLICT(setting_key) DO UPDATE SET
+                    setting_value = excluded.setting_value,
+                    updated_at = excluded.updated_at",
+                params![key, value, timestamp(updated_at)],
+            )?;
+        }
+        transaction.commit()?;
+        Ok(())
+    }
+
     pub fn daily_reward_state(
         &self,
         cycle_id: &str,
@@ -270,8 +296,19 @@ impl SqliteRepository {
     }
 
     pub fn wallet_totals(&self) -> Result<WalletTotals, PersistenceError> {
+        self.wallet_totals_for_cycle(None)
+    }
+
+    pub fn cycle_wallet_totals(&self, cycle_id: &str) -> Result<WalletTotals, PersistenceError> {
+        self.wallet_totals_for_cycle(Some(cycle_id))
+    }
+
+    fn wallet_totals_for_cycle(
+        &self,
+        cycle_id: Option<&str>,
+    ) -> Result<WalletTotals, PersistenceError> {
         let mut totals = WalletTotals::default();
-        for entry in self.collection_ledger(None)? {
+        for entry in self.collection_ledger(cycle_id)? {
             totals.counts = checked_add_counts(totals.counts, entry.counts)?;
             totals.exact_value += entry.exact_value;
         }
