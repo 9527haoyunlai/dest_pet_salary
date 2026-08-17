@@ -145,6 +145,49 @@ impl SqliteRepository {
         query_payroll_cycle(&self.connection, cycle_id)
     }
 
+    /// Removes the zero-value cycle produced by the Phase 3.5 debug bootstrap.
+    /// A non-zero payroll snapshot is immutable and is never removed here.
+    pub fn remove_unconfigured_zero_cycle(
+        &mut self,
+        cycle_id: &str,
+    ) -> Result<bool, PersistenceError> {
+        let Some(cycle) = self.payroll_cycle(cycle_id)? else {
+            return Ok(false);
+        };
+        if !cycle.monthly_salary.is_zero() {
+            return Ok(false);
+        }
+
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        transaction.execute(
+            "DELETE FROM collection_ledger WHERE cycle_id = ?1",
+            params![cycle_id],
+        )?;
+        transaction.execute(
+            "DELETE FROM offline_reward_bag_items
+             WHERE bag_id IN (
+                SELECT bag_id FROM offline_reward_bags WHERE cycle_id = ?1
+             )",
+            params![cycle_id],
+        )?;
+        transaction.execute(
+            "DELETE FROM offline_reward_bags WHERE cycle_id = ?1",
+            params![cycle_id],
+        )?;
+        transaction.execute(
+            "DELETE FROM daily_reward_state WHERE cycle_id = ?1",
+            params![cycle_id],
+        )?;
+        let deleted = transaction.execute(
+            "DELETE FROM payroll_cycles WHERE cycle_id = ?1",
+            params![cycle_id],
+        )?;
+        transaction.commit()?;
+        Ok(deleted == 1)
+    }
+
     pub fn set_setting(
         &self,
         key: &str,

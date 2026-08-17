@@ -1511,7 +1511,18 @@ MVP 设置至少包括：
 - 最小开发调试区；
 - command / application service 测试。
 
-## Phase 4 — React Product UI
+## Phase 4A — Salary Configuration & Calendar Application API
+
+完成：
+
+- 首次工资配置；
+- 当前周期与下一周期工资语义；
+- 正式工资周期快照初始化；
+- 月份日历查询；
+- 工资配置与日历 Tauri commands；
+- 最小配置 / 日历调试区。
+
+## Phase 4B — React Product UI
 
 完成：
 

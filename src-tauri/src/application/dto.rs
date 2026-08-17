@@ -106,3 +106,51 @@ pub struct CollectionLedgerEntryDto {
     pub exact_value: String,
     pub created_at: String,
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct SalaryCycleDto {
+    pub cycle_id: String,
+    pub start_date: String,
+    pub end_date: String,
+    pub workday_count: u32,
+    pub monthly_salary_exact: String,
+    pub daily_salary_exact: String,
+    pub hourly_salary_exact: String,
+    pub per_second_salary_exact: String,
+    pub silver_value_exact: String,
+    pub gold_value_exact: String,
+    pub diamond_value_exact: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct SalaryConfigurationDto {
+    pub is_initialized: bool,
+    pub timezone: String,
+    pub current_year: i32,
+    pub current_month: u32,
+    pub current_cycle: Option<SalaryCycleDto>,
+    pub next_cycle_salary_exact: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct CalendarDayDto {
+    pub date: String,
+    pub weekday: String,
+    pub is_workday: bool,
+    pub is_weekend: bool,
+    pub is_holiday: bool,
+    pub holiday_name: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct CalendarMonthDto {
+    pub year: i32,
+    pub month: u32,
+    pub timezone: String,
+    pub cycle_id: String,
+    pub cycle_start: String,
+    pub cycle_end: String,
+    pub workday_count: u32,
+    pub payday: String,
+    pub days: Vec<CalendarDayDto>,
+}

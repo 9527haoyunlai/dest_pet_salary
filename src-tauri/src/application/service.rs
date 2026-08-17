@@ -1,5 +1,5 @@
-use chrono::{DateTime, Datelike, Days, NaiveTime, TimeZone, Utc};
-use chrono_tz::{Asia::Shanghai, Tz};
+use chrono::{DateTime, Days, NaiveTime, TimeZone, Utc};
+use chrono_tz::Tz;
 use rust_decimal::Decimal;
 
 use crate::domain::payroll::{
@@ -16,7 +16,6 @@ use super::{
     RewardEntitlementDto, RewardValuesDto, WalletDisplayMode,
 };
 
-const DEFAULT_CALENDAR_VERSION: &str = "weekdays-only-v1";
 const SETTING_WALLET_DISPLAY_MODE: &str = "wallet_display_mode";
 const SETTING_SOUND_ENABLED: &str = "sound_enabled";
 const SETTING_AUTO_COLLECT_ENABLED: &str = "auto_collect_enabled";
@@ -29,23 +28,6 @@ pub struct ApplicationContext {
 }
 
 impl ApplicationContext {
-    pub fn default_for(at_utc: DateTime<Utc>) -> Result<Self, ApplicationError> {
-        let local_date = at_utc.with_timezone(&Shanghai).date_naive();
-        let calendar = WorkCalendar::new(DEFAULT_CALENDAR_VERSION, []);
-        let cycle = PayrollCycle::for_month(
-            local_date.year(),
-            local_date.month(),
-            Decimal::ZERO,
-            Shanghai,
-            &calendar,
-        )?;
-        Ok(Self {
-            cycle_id: format!("{:04}-{:02}", cycle.year(), cycle.month()),
-            cycle,
-            calendar,
-        })
-    }
-
     pub fn new(cycle_id: impl Into<String>, cycle: PayrollCycle, calendar: WorkCalendar) -> Self {
         Self {
             cycle_id: cycle_id.into(),

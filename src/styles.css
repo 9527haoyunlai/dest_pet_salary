@@ -65,6 +65,56 @@ h1 {
   font-size: 0.86rem;
 }
 
+.debug-section {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: rgb(255 255 255 / 3%);
+  border: 1px solid rgb(184 223 168 / 16%);
+  border-radius: 0.6rem;
+}
+
+.debug-section h2 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+}
+
+.debug-section p {
+  margin: 0.5rem 0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.debug-input {
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  color: #a8caa0;
+  font-size: 0.82rem;
+}
+
+.debug-input input {
+  width: min(18rem, 100%);
+  padding: 0.55rem 0.65rem;
+  color: #eff8ee;
+  background: #101e14;
+  border: 1px solid #527b58;
+  border-radius: 0.4rem;
+}
+
+.calendar-days {
+  max-height: 11rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.76rem;
+  list-style: none;
+}
+
+.calendar-days li {
+  padding: 0.2rem 0;
+}
+
 .debug-grid dt {
   color: #a8caa0;
 }
@@ -91,7 +141,8 @@ h1 {
   gap: 0.75rem;
 }
 
-.debug-actions button {
+.debug-actions button,
+.debug-section button {
   padding: 0.65rem 1rem;
   color: #eff8ee;
   cursor: pointer;
@@ -100,7 +151,8 @@ h1 {
   border-radius: 0.45rem;
 }
 
-.debug-actions button:disabled {
+.debug-actions button:disabled,
+.debug-section button:disabled {
   cursor: wait;
   opacity: 0.55;
 }

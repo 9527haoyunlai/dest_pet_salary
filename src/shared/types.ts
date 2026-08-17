@@ -72,3 +72,47 @@ export interface AppSettingsDto {
   sound_enabled: boolean;
   auto_collect_enabled: boolean;
 }
+
+export interface SalaryCycleDto {
+  cycle_id: string;
+  start_date: string;
+  end_date: string;
+  workday_count: number;
+  monthly_salary_exact: ExactDecimal;
+  daily_salary_exact: ExactDecimal;
+  hourly_salary_exact: ExactDecimal;
+  per_second_salary_exact: ExactDecimal;
+  silver_value_exact: ExactDecimal;
+  gold_value_exact: ExactDecimal;
+  diamond_value_exact: ExactDecimal;
+}
+
+export interface SalaryConfigurationDto {
+  is_initialized: boolean;
+  timezone: string;
+  current_year: number;
+  current_month: number;
+  current_cycle: SalaryCycleDto | null;
+  next_cycle_salary_exact: ExactDecimal | null;
+}
+
+export interface CalendarDayDto {
+  date: string;
+  weekday: string;
+  is_workday: boolean;
+  is_weekend: boolean;
+  is_holiday: boolean;
+  holiday_name: string | null;
+}
+
+export interface CalendarMonthDto {
+  year: number;
+  month: number;
+  timezone: string;
+  cycle_id: string;
+  cycle_start: string;
+  cycle_end: string;
+  workday_count: number;
+  payday: string;
+  days: CalendarDayDto[];
+}

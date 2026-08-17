@@ -3,8 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AppSettingsDto,
   AppSnapshotDto,
+  CalendarMonthDto,
   CollectionLedgerEntryDto,
   OfflineRewardBagDto,
+  SalaryConfigurationDto,
 } from "./types";
 
 export function getAppSnapshot(): Promise<AppSnapshotDto> {
@@ -31,4 +33,31 @@ export function updateAppSettings(
   settings: AppSettingsDto,
 ): Promise<AppSettingsDto> {
   return invoke<AppSettingsDto>("update_app_settings", { settings });
+}
+
+export function getSalaryConfiguration(): Promise<SalaryConfigurationDto> {
+  return invoke<SalaryConfigurationDto>("get_salary_configuration");
+}
+
+export function initializeSalary(
+  monthlySalaryExact: string,
+): Promise<SalaryConfigurationDto> {
+  return invoke<SalaryConfigurationDto>("initialize_salary", {
+    monthlySalaryExact,
+  });
+}
+
+export function updateNextCycleSalary(
+  monthlySalaryExact: string,
+): Promise<SalaryConfigurationDto> {
+  return invoke<SalaryConfigurationDto>("update_next_cycle_salary", {
+    monthlySalaryExact,
+  });
+}
+
+export function getCalendarMonth(
+  year: number,
+  month: number,
+): Promise<CalendarMonthDto> {
+  return invoke<CalendarMonthDto>("get_calendar_month", { year, month });
 }
