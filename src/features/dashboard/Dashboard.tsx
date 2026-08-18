@@ -3,8 +3,8 @@ import type {
   OfflineRewardBagDto,
   WalletDisplayMode,
 } from "../../shared/types";
-import { GameScenePlaceholder } from "../../components/GameScenePlaceholder";
 import { PlantStatusBar } from "../../components/PlantStatusBar";
+import { PixiGameScene } from "../game/PixiGameScene";
 import { OfflineRewardBag } from "../offline-bag/OfflineRewardBag";
 import { WalletPanel } from "../wallet/WalletPanel";
 import { WorkStatus } from "./WorkStatus";
@@ -31,7 +31,7 @@ export function Dashboard({
       <PlantStatusBar />
       <WorkStatus snapshot={snapshot} />
       <div className="dashboard-grid">
-        <GameScenePlaceholder />
+        <PixiGameScene />
         <WalletPanel
           snapshot={snapshot}
           mode={walletMode}

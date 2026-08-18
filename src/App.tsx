@@ -170,7 +170,7 @@ function AppContent() {
           </span>
           <span>
             <strong>Salary Garden</strong>
-            <small>Phase 4B.2.1 · Visual QA</small>
+            <small>Phase 5A · PixiJS Core Scene</small>
           </span>
         </div>
         <nav className="primary-navigation" aria-label="Primary navigation">

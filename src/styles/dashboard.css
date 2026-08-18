@@ -97,6 +97,56 @@
     0 5px 10px rgb(0 0 0 / 45%);
 }
 
+.pixi-game-scene {
+  display: block;
+  padding: 0;
+  background: #16260f;
+  isolation: isolate;
+}
+
+.pixi-game-host {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.pixi-game-canvas {
+  position: absolute;
+  display: block;
+  max-width: none;
+  max-height: none;
+}
+
+.pixi-scene-badge,
+.pixi-scene-error {
+  position: absolute;
+  z-index: 2;
+  left: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: 0.25rem;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 45%);
+}
+
+.pixi-scene-badge {
+  bottom: var(--space-2);
+  color: #f4e3a7;
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  background: rgb(40 49 25 / 78%);
+  border: 1px solid rgb(240 220 130 / 55%);
+}
+
+.pixi-scene-error {
+  top: var(--space-2);
+  right: var(--space-2);
+  margin: 0;
+  color: #fff2dc;
+  font-size: 0.7rem;
+  background: rgb(103 30 21 / 90%);
+  border: 1px solid #e89a67;
+}
+
 .scene-vignette {
   position: absolute;
   inset: 0;
