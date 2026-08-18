@@ -150,7 +150,7 @@ export function SettingsPanel({
           <label className="setting-row">
             <span>
               <strong>Auto collect</strong>
-              <small>Stored preference; gameplay arrives later</small>
+              <small>Magnet-shroom collects live rewards after a short pause</small>
             </span>
             <input
               type="checkbox"

@@ -21,3 +21,13 @@ export function getLiveRewardPosition(event: LiveRewardEventDto) {
     y: marigold.y - 92 + Math.floor(slot / 4) * 47,
   };
 }
+
+export function getLiveRewardSpawnPosition() {
+  const marigold = getCellCenter(1, 0);
+  return { x: marigold.x, y: marigold.y + 4 };
+}
+
+export function getMagnetCollectionPosition() {
+  const magnet = getCellCenter(1, 1);
+  return { x: magnet.x, y: magnet.y + 2 };
+}

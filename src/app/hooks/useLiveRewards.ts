@@ -25,6 +25,7 @@ export function useLiveRewards(
   const [error, setError] = useState<string | null>(null);
   const mounted = useRef(true);
   const syncing = useRef(false);
+  const collectionsInFlight = useRef(new Map<string, Promise<void>>());
 
   const sync = useCallback(async () => {
     if (!enabled || syncing.current) return;
@@ -43,7 +44,11 @@ export function useLiveRewards(
   }, [enabled]);
 
   const collect = useCallback(
-    async (eventId: string) => {
+    (eventId: string): Promise<void> => {
+      const existing = collectionsInFlight.current.get(eventId);
+      if (existing) return existing;
+
+      const request = (async () => {
       try {
         await collectLiveReward(eventId);
         if (mounted.current) {
@@ -54,9 +59,30 @@ export function useLiveRewards(
         await onSettled();
         await sync();
       } catch (reason) {
+        try {
+          const pending = await listPendingLiveRewards();
+          const stillPending = pending.some((event) => event.event_id === eventId);
+          if (mounted.current) setEvents(pending);
+          if (!stillPending) {
+            // Another collector won the race. Rust is authoritative, so treat the
+            // absent pending event as settled and refresh rather than showing it again.
+            if (mounted.current) setError(null);
+            await onSettled();
+            await sync();
+            return;
+          }
+        } catch {
+          // Preserve the original collection error; a failed confirmation cannot
+          // safely classify the event as already settled.
+        }
         if (mounted.current) setError(String(reason));
         throw reason;
       }
+      })().finally(() => {
+        collectionsInFlight.current.delete(eventId);
+      });
+      collectionsInFlight.current.set(eventId, request);
+      return request;
     },
     [onSettled, sync],
   );
@@ -68,6 +94,7 @@ export function useLiveRewards(
       setError(null);
       return () => {
         mounted.current = false;
+        collectionsInFlight.current.clear();
       };
     }
 
@@ -83,6 +110,7 @@ export function useLiveRewards(
     return () => {
       mounted.current = false;
       window.clearInterval(interval);
+      collectionsInFlight.current.clear();
     };
   }, [enabled, sync, syncIntervalMs]);
 

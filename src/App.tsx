@@ -191,7 +191,7 @@ function AppContent() {
           </span>
           <span>
             <strong>Salary Garden</strong>
-            <small>Phase 5B · Live Reward Settlement</small>
+            <small>Phase 5C · Reward Presentation</small>
           </span>
         </div>
         <nav className="primary-navigation" aria-label="Primary navigation">
@@ -239,6 +239,7 @@ function AppContent() {
             onWalletModeChange={setWalletMode}
             onClaimBag={(bagId) => void claimBag(bagId)}
             liveRewards={liveRewardsState.events}
+            autoCollectEnabled={settings.auto_collect_enabled}
             onCollectLiveReward={liveRewardsState.collect}
           />
         ) : null}

@@ -8,6 +8,7 @@ export interface PixiGameRuntime {
   canvas: HTMLCanvasElement;
   resize(width: number, height: number): void;
   setLiveRewards(events: LiveRewardEventDto[]): void;
+  setAutoCollectEnabled(enabled: boolean): void;
   destroy(): void;
 }
 
@@ -56,10 +57,14 @@ export async function createPixiGameRuntime(
     setLiveRewards(events) {
       scene.setLiveRewards(events);
     },
+    setAutoCollectEnabled(enabled) {
+      scene.setAutoCollectEnabled(enabled);
+    },
     destroy() {
       if (destroyed) return;
       destroyed = true;
       app.ticker.remove(tick);
+      scene.destroy();
       app.destroy({ removeView: true }, { children: true });
     },
   };

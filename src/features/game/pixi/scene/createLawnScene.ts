@@ -3,6 +3,11 @@ import { Assets, Container, Graphics, Sprite, Text } from "pixi.js";
 import { pixiAssetUrls, getPixiAsset } from "../assets/manifest";
 import { createBucketZombie } from "../entities/bucketZombie";
 import { createLiveRewardEntity, type LiveRewardVisual } from "../entities/liveReward";
+import { getMagnetCollectionPosition } from "../entities/liveRewardPlacement";
+import {
+  MAX_VISIBLE_LIVE_REWARDS,
+  selectOldestMagnetCandidate,
+} from "../entities/liveRewardPresentation";
 import { createFixedPlants } from "../entities/plants";
 import { LAWN_GRID } from "../layout/lawnGrid";
 import { LOGICAL_SCENE_HEIGHT, LOGICAL_SCENE_WIDTH } from "../layout/contain";
@@ -14,7 +19,9 @@ export const SHOW_DEBUG_GRID = false;
 export interface LawnScene {
   root: Container;
   setLiveRewards(events: LiveRewardEventDto[]): void;
+  setAutoCollectEnabled(enabled: boolean): void;
   update(deltaSeconds: number): void;
+  destroy(): void;
 }
 
 function createGrid(showDebug: boolean): Container {
@@ -82,25 +89,33 @@ export async function createLawnScene(
   const bucketZombie = createBucketZombie();
   layers.zombieLayer.addChild(bucketZombie.container);
   const liveRewards = new Map<string, LiveRewardVisual>();
+  const magnetTarget = getMagnetCollectionPosition();
 
   let elapsed = 0;
+  let autoCollectEnabled = false;
+  let activeMagnetEventId: string | null = null;
   return {
     root,
     setLiveRewards(events) {
-      const pendingIds = new Set(events.map((event) => event.event_id));
+      const visibleEvents = events.slice(0, MAX_VISIBLE_LIVE_REWARDS);
+      const pendingIds = new Set(visibleEvents.map((event) => event.event_id));
       for (const [eventId, visual] of liveRewards) {
         if (!pendingIds.has(eventId)) {
           layers.rewardLayer.removeChild(visual.container);
-          visual.container.destroy({ children: true });
+          visual.destroy();
           liveRewards.delete(eventId);
+          if (activeMagnetEventId === eventId) activeMagnetEventId = null;
         }
       }
-      for (const event of events) {
+      for (const event of visibleEvents) {
         if (liveRewards.has(event.event_id)) continue;
         const visual = createLiveRewardEntity(event, onCollectLiveReward);
         liveRewards.set(event.event_id, visual);
         layers.rewardLayer.addChild(visual.container);
       }
+    },
+    setAutoCollectEnabled(enabled) {
+      autoCollectEnabled = enabled;
     },
     update(deltaSeconds) {
       elapsed += deltaSeconds;
@@ -110,8 +125,28 @@ export async function createLawnScene(
       });
       bucketZombie.advance(deltaSeconds);
       for (const visual of liveRewards.values()) {
-        visual.update(elapsed);
+        visual.update(deltaSeconds, elapsed);
       }
+
+      if (activeMagnetEventId) {
+        const active = liveRewards.get(activeMagnetEventId);
+        if (!active || (active.state !== "MAGNETIZING" && active.state !== "SETTLING")) {
+          activeMagnetEventId = null;
+        }
+      }
+
+      if (autoCollectEnabled && !activeMagnetEventId) {
+        const next = selectOldestMagnetCandidate(liveRewards.values());
+        if (next?.beginMagnet(magnetTarget)) activeMagnetEventId = next.event.event_id;
+      }
+    },
+    destroy() {
+      for (const visual of liveRewards.values()) {
+        layers.rewardLayer.removeChild(visual.container);
+        visual.destroy();
+      }
+      liveRewards.clear();
+      activeMagnetEventId = null;
     },
   };
 }

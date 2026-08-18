@@ -28,4 +28,11 @@ describe("live reward visual DTO mapping", () => {
       getLiveRewardPosition(event),
     );
   });
+
+  it("keeps all twelve visible rewards in distinct deterministic slots", () => {
+    const positions = Array.from({ length: 12 }, (_, index) =>
+      getLiveRewardPosition({ ...event, event_index: index + 1 }),
+    );
+    expect(new Set(positions.map(({ x, y }) => `${x}:${y}`))).toHaveLength(12);
+  });
 });

@@ -52,4 +52,62 @@ describe("useLiveRewards", () => {
     expect(hook.result.current.events).toEqual([]);
     expect(onSettled).toHaveBeenCalledTimes(1);
   });
+
+  it("deduplicates concurrent manual and magnet settlement calls", async () => {
+    let resolveCollection!: (value: Awaited<ReturnType<typeof api.collectLiveReward>>) => void;
+    vi.mocked(api.collectLiveReward).mockImplementation(
+      () => new Promise((resolve) => { resolveCollection = resolve; }),
+    );
+    const onSettled = vi.fn().mockResolvedValue(undefined);
+    const hook = renderHook(() => useLiveRewards(true, onSettled, 60_000));
+    await waitFor(() => expect(hook.result.current.events).toEqual([liveRewardFixture]));
+    vi.mocked(api.syncLiveRewards).mockResolvedValue([]);
+
+    let manual!: Promise<void>;
+    let magnet!: Promise<void>;
+    act(() => {
+      manual = hook.result.current.collect(liveRewardFixture.event_id);
+      magnet = hook.result.current.collect(liveRewardFixture.event_id);
+    });
+    expect(api.collectLiveReward).toHaveBeenCalledTimes(1);
+    resolveCollection({
+      transaction_id: "tx-race",
+      cycle_id: liveRewardFixture.cycle_id,
+      source_type: "LIVE_REWARD_COLLECTION",
+      source_id: liveRewardFixture.event_id,
+      counts: { silver: 1, gold: 0, diamond: 0 },
+      exact_value: liveRewardFixture.exact_value,
+      created_at: "2026-08-17T02:00:11Z",
+    });
+    await act(async () => Promise.all([manual, magnet]));
+    expect(onSettled).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats an event absent after a rejected collect as already settled", async () => {
+    vi.mocked(api.collectLiveReward).mockRejectedValue(new Error("already collected"));
+    vi.mocked(api.listPendingLiveRewards)
+      .mockResolvedValueOnce([liveRewardFixture])
+      .mockResolvedValueOnce([]);
+    const onSettled = vi.fn().mockResolvedValue(undefined);
+    const hook = renderHook(() => useLiveRewards(true, onSettled, 60_000));
+    await waitFor(() => expect(hook.result.current.events).toEqual([liveRewardFixture]));
+    vi.mocked(api.syncLiveRewards).mockResolvedValue([]);
+
+    await act(async () => hook.result.current.collect(liveRewardFixture.event_id));
+    expect(hook.result.current.events).toEqual([]);
+    expect(hook.result.current.error).toBeNull();
+    expect(onSettled).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains a pending event after a real collection error", async () => {
+    vi.mocked(api.collectLiveReward).mockRejectedValue(new Error("database unavailable"));
+    const onSettled = vi.fn().mockResolvedValue(undefined);
+    const hook = renderHook(() => useLiveRewards(true, onSettled, 60_000));
+    await waitFor(() => expect(hook.result.current.events).toEqual([liveRewardFixture]));
+
+    await expect(
+      act(async () => hook.result.current.collect(liveRewardFixture.event_id)),
+    ).rejects.toThrow("database unavailable");
+    expect(hook.result.current.events).toEqual([liveRewardFixture]);
+  });
 });

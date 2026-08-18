@@ -12,6 +12,7 @@ describe("PixiGameScene lifecycle", () => {
       canvas,
       resize: vi.fn(),
       setLiveRewards: vi.fn(),
+      setAutoCollectEnabled: vi.fn(),
       destroy: vi.fn(),
     };
     let runtimeCollect!: (eventId: string) => Promise<void>;
@@ -23,6 +24,7 @@ describe("PixiGameScene lifecycle", () => {
     const view = render(
       <PixiGameScene
         liveRewards={[liveRewardFixture]}
+        autoCollectEnabled
         onCollectLiveReward={onCollectLiveReward}
         createRuntime={createRuntime}
       />,
@@ -33,6 +35,16 @@ describe("PixiGameScene lifecycle", () => {
     expect(createRuntime).toHaveBeenCalledTimes(1);
     expect(runtime.resize).toHaveBeenCalledTimes(1);
     expect(runtime.setLiveRewards).toHaveBeenCalledWith([liveRewardFixture]);
+    expect(runtime.setAutoCollectEnabled).toHaveBeenCalledWith(true);
+    view.rerender(
+      <PixiGameScene
+        liveRewards={[liveRewardFixture]}
+        autoCollectEnabled={false}
+        onCollectLiveReward={onCollectLiveReward}
+        createRuntime={createRuntime}
+      />,
+    );
+    expect(runtime.setAutoCollectEnabled).toHaveBeenLastCalledWith(false);
     await runtimeCollect(liveRewardFixture.event_id);
     expect(onCollectLiveReward).toHaveBeenCalledWith(liveRewardFixture.event_id);
 
@@ -47,6 +59,7 @@ describe("PixiGameScene lifecycle", () => {
       canvas: document.createElement("canvas"),
       resize: vi.fn(),
       setLiveRewards: vi.fn(),
+      setAutoCollectEnabled: vi.fn(),
       destroy: vi.fn(),
     };
     const createRuntime = () =>
@@ -56,6 +69,7 @@ describe("PixiGameScene lifecycle", () => {
     const view = render(
       <PixiGameScene
         liveRewards={[]}
+        autoCollectEnabled={false}
         onCollectLiveReward={vi.fn()}
         createRuntime={createRuntime}
       />,

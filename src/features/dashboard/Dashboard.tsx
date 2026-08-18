@@ -18,6 +18,7 @@ interface DashboardProps {
   onWalletModeChange: (mode: WalletDisplayMode) => void;
   onClaimBag: (bagId: string) => void;
   liveRewards: LiveRewardEventDto[];
+  autoCollectEnabled: boolean;
   onCollectLiveReward: (eventId: string) => Promise<void>;
 }
 
@@ -29,6 +30,7 @@ export function Dashboard({
   onWalletModeChange,
   onClaimBag,
   liveRewards,
+  autoCollectEnabled,
   onCollectLiveReward,
 }: DashboardProps) {
   return (
@@ -38,6 +40,7 @@ export function Dashboard({
       <div className="dashboard-grid">
         <PixiGameScene
           liveRewards={liveRewards}
+          autoCollectEnabled={autoCollectEnabled}
           onCollectLiveReward={onCollectLiveReward}
         />
         <WalletPanel
