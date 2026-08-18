@@ -1,0 +1,130 @@
+.wallet-panel {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 100%;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  overflow: hidden;
+  color: #fff1ba;
+  background:
+    linear-gradient(rgb(255 255 255 / 5%), transparent),
+    repeating-linear-gradient(2deg, #70401f 0 10px, #643719 11px 20px);
+  border: 5px solid #2c190c;
+  border-radius: 0.65rem;
+  box-shadow:
+    inset 0 0 0 2px #a56b32,
+    inset 0 0 20px rgb(0 0 0 / 28%),
+    0 5px 10px rgb(0 0 0 / 45%);
+}
+
+.wallet-panel::before,
+.wallet-panel::after {
+  position: absolute;
+  width: 0.45rem;
+  height: 0.45rem;
+  content: "";
+  background: #c99b50;
+  border: 1px solid #2d1b0d;
+  border-radius: 50%;
+  box-shadow: inset 0 1px 1px #f4d88c;
+}
+
+.wallet-panel::before {
+  right: 0.55rem;
+  top: 0.55rem;
+}
+
+.wallet-panel::after {
+  left: 0.55rem;
+  bottom: 0.55rem;
+}
+
+.wallet-panel .section-heading {
+  position: relative;
+  z-index: 1;
+}
+
+.wallet-values {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.wallet-values article {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  align-items: center;
+  min-height: 4.25rem;
+  padding: var(--space-2);
+  overflow: hidden;
+  background: linear-gradient(135deg, #373743, #20212a);
+  border: 3px solid #15161d;
+  border-radius: 0.45rem;
+  box-shadow: inset 0 0 0 1px #686a76, 0 2px 3px rgb(0 0 0 / 45%);
+}
+
+.wallet-values article > img {
+  width: 1.65rem;
+  height: 1.65rem;
+  grid-row: 1 / 3;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 2px #000);
+}
+
+.wallet-values span {
+  color: #c7c1a7;
+  font-size: 0.62rem;
+}
+
+.wallet-values strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff198;
+  font-family: "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  font-size: clamp(1.25rem, 2.7vw, 1.8rem);
+  letter-spacing: -0.035em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 1px #12131a;
+}
+
+.pending-value {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  min-height: 1.35rem;
+  gap: var(--space-1);
+  margin: 0;
+  color: #f4d985;
+  font-size: 0.66rem;
+}
+
+.pending-value img {
+  width: 1.35rem;
+  height: 1.35rem;
+  object-fit: contain;
+}
+
+@media (max-width: 760px) {
+  .wallet-panel {
+    min-height: 13rem;
+  }
+
+  .wallet-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .wallet-values {
+    grid-template-columns: 1fr;
+  }
+}

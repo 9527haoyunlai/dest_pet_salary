@@ -1,0 +1,126 @@
+.settings-panel {
+  color: #f4ecd2;
+}
+
+.settings-panel > .section-heading,
+.settings-grid {
+  position: relative;
+  z-index: 1;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.settings-section {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  flex-direction: column;
+  padding: var(--space-4);
+  background: linear-gradient(145deg, #343742, #22242e);
+  border: 3px solid #101118;
+  border-radius: 0.45rem;
+  box-shadow: inset 0 0 0 1px #646773, inset 0 0 14px rgb(0 0 0 / 30%);
+}
+
+.settings-section h3 {
+  margin-bottom: var(--space-3);
+  color: #f5df7f;
+  font-family: "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.2;
+  text-shadow: 0 2px 1px #12131a;
+}
+
+.settings-facts {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-3);
+}
+
+.settings-facts div,
+.setting-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.settings-facts dt,
+.settings-facts dd {
+  margin: 0;
+}
+
+.settings-facts dt,
+.setting-row small {
+  color: #bbb9aa;
+  font-size: 0.64rem;
+  line-height: var(--small-line-height);
+}
+
+.settings-facts dd {
+  color: #fff2bd;
+  font-size: 0.7rem;
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.setting-row {
+  min-height: 3rem;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid #4e505a;
+}
+
+.setting-row > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.setting-row strong {
+  color: #efe7c8;
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.setting-row input[type="checkbox"] {
+  width: 1.55rem;
+  height: 1.55rem;
+  margin: 0;
+  cursor: pointer;
+  appearance: none;
+  background: var(--pvz-checkbox-off) center / contain no-repeat;
+}
+
+.setting-row input[type="checkbox"]:checked {
+  background-image: var(--pvz-checkbox-on);
+}
+
+.setting-row.is-later {
+  filter: grayscale(0.75);
+  opacity: 0.6;
+}
+
+.timezone-label {
+  padding: 0.35rem 0.5rem;
+  color: #e9ddba;
+  font-size: 0.64rem;
+  background: #2b2d36;
+  border: 2px solid #111219;
+  border-radius: 0.3rem;
+}
+
+@media (max-width: 760px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+  }
+}

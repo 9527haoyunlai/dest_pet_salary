@@ -1,0 +1,103 @@
+.offline-bag-list {
+  display: grid;
+  max-height: 9rem;
+  min-height: 0;
+  gap: var(--space-2);
+  padding-right: var(--space-1);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.offline-bag {
+  position: relative;
+  display: grid;
+  min-height: 4.75rem;
+  grid-template-columns: 3.5rem minmax(0, 1fr) 7.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  overflow: hidden;
+  color: #3b2917;
+  background:
+    radial-gradient(circle at 30% 10%, rgb(255 255 255 / 70%), transparent 32%),
+    linear-gradient(#efd99d, #caa96c);
+  border: 4px solid #4b2c12;
+  border-radius: 0.55rem;
+  box-shadow: inset 0 0 0 2px #fff0b5, 0 4px 7px rgb(0 0 0 / 42%);
+}
+
+.bag-mark {
+  width: 3.3rem;
+  height: 3.3rem;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 2px rgb(79 47 16 / 45%));
+}
+
+.bag-details {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(6rem, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.bag-details .eyebrow {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #69421d;
+  text-shadow: 0 1px 0 #fff0ba;
+}
+
+.bag-details > strong {
+  font-family: "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  font-size: 1.05rem;
+  line-height: 1.1;
+  text-shadow: 0 1px 0 #fff1b5;
+}
+
+.bag-counts {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(3, max-content);
+  gap: var(--space-2);
+  color: #5b4329;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.offline-bag .primary-button {
+  width: 100%;
+  justify-self: end;
+}
+
+.bag-counts > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  white-space: nowrap;
+}
+
+.bag-counts img {
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+}
+
+@media (max-width: 600px) {
+  .offline-bag {
+    grid-template-columns: 3rem minmax(0, 1fr);
+  }
+
+  .offline-bag .primary-button {
+    grid-column: 1 / -1;
+  }
+
+  .bag-details {
+    grid-template-columns: 1fr;
+  }
+
+  .bag-counts {
+    flex-wrap: wrap;
+  }
+}

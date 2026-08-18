@@ -1538,7 +1538,17 @@ MVP 设置至少包括：
 
 ## Phase 4B.2 — PVZ Visual Skin
 
-在不改变 Phase 4B.1 功能边界和财务逻辑的前提下，完成 PVZ 风格视觉皮肤。
+在不改变 Phase 4B.1 功能边界和财务逻辑的前提下，完成：
+
+- 扫描用户本地 PVZ resources 并建立集中式 UI asset manifest；
+- Seed Bank / 四植物卡片静态皮肤；
+- Dashboard / Wallet / Work Status HUD 皮肤；
+- Calendar / Settings / Offline Bag 皮肤；
+- GameScenePlaceholder 静态草坪背景；
+- Loading / Error / Retry 统一皮肤；
+- 按 feature 拆分 CSS；
+- 保持 HTML 文本、输入与可访问控件；
+- 不引入 PixiJS、动画实体或游戏循环。
 
 ## Phase 5 — PixiJS Scene
 

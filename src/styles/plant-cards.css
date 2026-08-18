@@ -1,0 +1,149 @@
+.plant-status-bar {
+  --seed-bank-sun-well: 6.75rem;
+  --seed-card-height: 4.25rem;
+  --seed-icon-size: 2.75rem;
+  display: grid;
+  min-height: 5.2rem;
+  grid-template-columns: repeat(4, minmax(8.2rem, 9rem));
+  align-items: center;
+  justify-content: start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--seed-bank-sun-well);
+  background: var(--pvz-seed-bank) left center / 100% 100% no-repeat;
+  filter: drop-shadow(0 4px 3px rgb(0 0 0 / 45%));
+}
+
+.plant-slot {
+  display: grid;
+  min-width: 0;
+  height: var(--seed-card-height);
+  grid-template-columns: var(--seed-icon-size) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) 0.75rem;
+  align-items: stretch;
+  gap: var(--space-1) var(--space-1);
+  padding: var(--space-1);
+  overflow: hidden;
+  color: #2d2516;
+  background: linear-gradient(135deg, #eee5b7, #c8bb82);
+  border: 3px solid #34200f;
+  border-radius: 0.35rem;
+  box-shadow:
+    inset 0 0 0 2px #f8efc6,
+    inset 0 -8px 12px rgb(94 63 25 / 15%),
+    0 2px 2px rgb(0 0 0 / 45%);
+}
+
+.plant-slot.is-deployed {
+  background: linear-gradient(135deg, #dfe6a4, #97ad59);
+  border-color: #273411;
+}
+
+.plant-slot.is-locked {
+  filter: saturate(0.55) brightness(0.82);
+}
+
+.plant-art {
+  position: relative;
+  display: grid;
+  width: var(--seed-icon-size);
+  height: var(--seed-icon-size);
+  grid-row: 1 / -1;
+  align-self: center;
+  align-items: center;
+  justify-items: center;
+  background: radial-gradient(circle, #d9ef92, #7fa24d 72%, #436127 74%);
+  border: 2px solid #4c3a1b;
+  border-radius: 0.35rem;
+  box-shadow: inset 0 0 8px rgb(255 255 255 / 32%);
+}
+
+.plant-art img {
+  position: absolute;
+  max-width: 2.75rem;
+  max-height: 2.65rem;
+  object-fit: contain;
+  image-rendering: auto;
+}
+
+.plant-art-backdrop {
+  width: 2.6rem;
+}
+
+.plant-art-main {
+  z-index: 1;
+}
+
+.plant-card-copy {
+  display: flex;
+  min-width: 0;
+  align-self: start;
+  flex-direction: column;
+  padding-top: var(--space-1);
+}
+
+.plant-card-copy strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-family: "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  font-size: 0.72rem;
+  line-height: 1.05;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 55%);
+}
+
+.plant-card-copy small {
+  margin-top: var(--space-1);
+  color: #554b2d;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: var(--small-line-height);
+}
+
+.plant-card-status {
+  display: inline-grid;
+  min-width: 3rem;
+  height: 0.75rem;
+  grid-column: 2;
+  align-self: end;
+  justify-self: end;
+  padding: 0 var(--space-1);
+  color: #efe8bb;
+  font-size: 0.46rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  background: #4f3720;
+  border-radius: 0.15rem;
+  line-height: 1;
+  place-items: center;
+}
+
+.plant-slot.is-deployed .plant-card-status {
+  background: #426126;
+}
+
+@media (max-width: 760px) {
+  .plant-status-bar {
+    grid-template-columns: repeat(4, 8.2rem);
+    --seed-bank-sun-well: 5.5rem;
+    padding-left: var(--seed-bank-sun-well);
+    overflow-x: auto;
+  }
+
+  .plant-slot {
+    --seed-icon-size: 2.6rem;
+  }
+
+  .plant-art {
+    width: 2.6rem;
+    height: 2.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .plant-status-bar {
+    grid-template-columns: repeat(4, 6.5rem);
+    --seed-bank-sun-well: 4.75rem;
+    padding-left: var(--seed-bank-sun-well);
+  }
+}

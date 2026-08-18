@@ -6,6 +6,7 @@ interface ErrorStateProps {
 export function ErrorState({ message, onRetry }: ErrorStateProps) {
   return (
     <section className="state-panel error-panel" role="alert">
+      <img className="error-plant" src={pvzUiAssets.plants.marigold} alt="" />
       <p className="eyebrow">Connection interrupted</p>
       <h2>Salary Garden could not load</h2>
       <p>{message}</p>
@@ -15,3 +16,4 @@ export function ErrorState({ message, onRetry }: ErrorStateProps) {
     </section>
   );
 }
+import { pvzUiAssets } from "../assets/pvz-ui";

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAppSnapshot } from "./app/hooks/useAppSnapshot";
+import { PvzSkinSurface } from "./app/PvzSkinSurface";
+import { pvzUiAssets } from "./assets/pvz-ui";
 import { ErrorState } from "./components/ErrorState";
 import { LoadingState } from "./components/LoadingState";
 import { CalendarPanel } from "./features/calendar/CalendarPanel";
@@ -74,7 +76,7 @@ function SalarySetup({ onInitialized }: { onInitialized: () => Promise<void> }) 
   );
 }
 
-export default function App() {
+function AppContent() {
   const [configuration, setConfiguration] =
     useState<SalaryConfigurationDto | null>(null);
   const [settings, setSettings] = useState<AppSettingsDto | null>(null);
@@ -163,10 +165,12 @@ export default function App() {
     <main className="product-shell">
       <header className="app-header">
         <div className="brand-lockup">
-          <span className="brand-mark" aria-hidden="true">SG</span>
+          <span className="brand-mark" aria-hidden="true">
+            <img src={pvzUiAssets.rewards.sun} alt="" />
+          </span>
           <span>
             <strong>Salary Garden</strong>
-            <small>Phase 4B.1 · Functional UI</small>
+            <small>Phase 4B.2.1 · Visual QA</small>
           </span>
         </div>
         <nav className="primary-navigation" aria-label="Primary navigation">
@@ -224,5 +228,13 @@ export default function App() {
         ) : null}
       </div>
     </main>
+  );
+}
+
+export default function App() {
+  return (
+    <PvzSkinSurface>
+      <AppContent />
+    </PvzSkinSurface>
   );
 }
