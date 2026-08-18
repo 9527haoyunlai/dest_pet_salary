@@ -1,12 +1,12 @@
 use std::sync::{Mutex, MutexGuard};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use tauri::State;
 
 use crate::application::{
     AppSettingsDto, AppSnapshotDto, ApplicationContext, ApplicationEnvironment, ApplicationError,
-    ApplicationService, CalendarMonthDto, CollectionLedgerEntryDto, OfflineRewardBagDto,
-    SalaryConfigurationDto, SalaryConfigurationService,
+    ApplicationService, CalendarMonthDto, CollectionLedgerEntryDto, LiveRewardEventDto,
+    OfflineRewardBagDto, SalaryConfigurationDto, SalaryConfigurationService,
 };
 use crate::persistence::SqliteRepository;
 
@@ -14,7 +14,10 @@ pub struct AppState {
     repository: Mutex<SqliteRepository>,
     context: Mutex<Option<ApplicationContext>>,
     environment: ApplicationEnvironment,
+    last_live_sync_at: Mutex<DateTime<Utc>>,
 }
+
+const LIVE_SESSION_STALE_AFTER_SECONDS: i64 = 15;
 
 impl AppState {
     pub fn initialize(
@@ -22,13 +25,16 @@ impl AppState {
         context: ApplicationContext,
         at_utc: DateTime<Utc>,
     ) -> Result<Self, ApplicationError> {
-        ApplicationService::new(&mut repository, &context).reconcile_offline(at_utc)?;
+        let mut service = ApplicationService::new(&mut repository, &context);
+        service.package_pending_live_rewards(at_utc)?;
+        service.reconcile_offline(at_utc)?;
         let environment =
             ApplicationEnvironment::from_calendar(context.cycle.timezone, context.calendar.clone());
         Ok(Self {
             repository: Mutex::new(repository),
             context: Mutex::new(Some(context)),
             environment,
+            last_live_sync_at: Mutex::new(at_utc),
         })
     }
 
@@ -40,12 +46,15 @@ impl AppState {
         let (_, context) = SalaryConfigurationService::new(&mut repository, &environment)
             .get_salary_configuration(at_utc)?;
         if let Some(context) = &context {
-            ApplicationService::new(&mut repository, context).reconcile_offline(at_utc)?;
+            let mut service = ApplicationService::new(&mut repository, context);
+            service.package_pending_live_rewards(at_utc)?;
+            service.reconcile_offline(at_utc)?;
         }
         Ok(Self {
             repository: Mutex::new(repository),
             context: Mutex::new(context),
             environment,
+            last_live_sync_at: Mutex::new(at_utc),
         })
     }
 
@@ -70,6 +79,82 @@ impl AppState {
             .map_err(|_| "application context lock is poisoned".to_owned())? = Some(context);
         Ok(())
     }
+}
+
+#[tauri::command]
+pub fn sync_live_rewards(state: State<'_, AppState>) -> Result<Vec<LiveRewardEventDto>, String> {
+    sync_live_rewards_at(&state, Utc::now())
+}
+
+pub fn sync_live_rewards_at(
+    state: &AppState,
+    at_utc: DateTime<Utc>,
+) -> Result<Vec<LiveRewardEventDto>, String> {
+    let context = state.context()?;
+    let mut repository = state.repository()?;
+    let mut last_sync = state
+        .last_live_sync_at
+        .lock()
+        .map_err(|_| "live reward session clock lock is poisoned".to_owned())?;
+    let inactive = at_utc.signed_duration_since(*last_sync)
+        > TimeDelta::seconds(LIVE_SESSION_STALE_AFTER_SECONDS);
+    let mut service = ApplicationService::new(&mut repository, &context);
+    let events = if inactive {
+        service
+            .package_pending_live_rewards(at_utc)
+            .map_err(|error| error.to_string())?;
+        service
+            .reconcile_offline(at_utc)
+            .map_err(|error| error.to_string())?;
+        service
+            .list_pending_live_rewards()
+            .map_err(|error| error.to_string())?
+    } else {
+        service
+            .sync_live_rewards(at_utc)
+            .map_err(|error| error.to_string())?
+    };
+    if at_utc > *last_sync {
+        *last_sync = at_utc;
+    }
+    Ok(events)
+}
+
+#[tauri::command]
+pub fn list_pending_live_rewards(
+    state: State<'_, AppState>,
+) -> Result<Vec<LiveRewardEventDto>, String> {
+    list_pending_live_rewards_from_state(&state)
+}
+
+pub fn list_pending_live_rewards_from_state(
+    state: &AppState,
+) -> Result<Vec<LiveRewardEventDto>, String> {
+    let context = state.context()?;
+    let mut repository = state.repository()?;
+    ApplicationService::new(&mut repository, &context)
+        .list_pending_live_rewards()
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn collect_live_reward(
+    state: State<'_, AppState>,
+    event_id: String,
+) -> Result<CollectionLedgerEntryDto, String> {
+    collect_live_reward_at(&state, &event_id, Utc::now())
+}
+
+pub fn collect_live_reward_at(
+    state: &AppState,
+    event_id: &str,
+    at_utc: DateTime<Utc>,
+) -> Result<CollectionLedgerEntryDto, String> {
+    let context = state.context()?;
+    let mut repository = state.repository()?;
+    ApplicationService::new(&mut repository, &context)
+        .collect_live_reward(event_id, at_utc)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

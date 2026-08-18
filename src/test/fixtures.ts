@@ -3,6 +3,7 @@ import type {
   AppSnapshotDto,
   CalendarMonthDto,
   OfflineRewardBagDto,
+  LiveRewardEventDto,
   SalaryConfigurationDto,
 } from "../shared/types";
 
@@ -76,6 +77,18 @@ export const bagFixture: OfflineRewardBagDto = {
   counts: { silver: 25, gold: 4, diamond: 0 },
   exact_value: "19.875",
   created_at: "2026-08-17T10:00:00Z",
+};
+
+export const liveRewardFixture: LiveRewardEventDto = {
+  event_id: "2026-08:2026-08-17:481",
+  cycle_id: "2026-08",
+  work_date: "2026-08-17",
+  effective_second_boundary: 4810,
+  event_index: 481,
+  reward_type: "SILVER",
+  status: "PENDING",
+  exact_value: "0.080505574",
+  created_at: "2026-08-17T02:00:10Z",
 };
 
 export function calendarFixture(year = 2026, month = 8): CalendarMonthDto {

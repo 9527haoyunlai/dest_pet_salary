@@ -2,15 +2,18 @@ import { Assets, Container, Graphics, Sprite, Text } from "pixi.js";
 
 import { pixiAssetUrls, getPixiAsset } from "../assets/manifest";
 import { createBucketZombie } from "../entities/bucketZombie";
+import { createLiveRewardEntity, type LiveRewardVisual } from "../entities/liveReward";
 import { createFixedPlants } from "../entities/plants";
 import { LAWN_GRID } from "../layout/lawnGrid";
 import { LOGICAL_SCENE_HEIGHT, LOGICAL_SCENE_WIDTH } from "../layout/contain";
 import { createLawnSceneLayers } from "./layers";
+import type { LiveRewardEventDto } from "../../../../shared/types";
 
 export const SHOW_DEBUG_GRID = false;
 
 export interface LawnScene {
   root: Container;
+  setLiveRewards(events: LiveRewardEventDto[]): void;
   update(deltaSeconds: number): void;
 }
 
@@ -45,7 +48,9 @@ function createGrid(showDebug: boolean): Container {
   return grid;
 }
 
-export async function createLawnScene(): Promise<LawnScene> {
+export async function createLawnScene(
+  onCollectLiveReward: (eventId: string) => Promise<void>,
+): Promise<LawnScene> {
   await Assets.load(pixiAssetUrls);
 
   const root = new Container({ label: "salary-garden-lawn" });
@@ -76,10 +81,27 @@ export async function createLawnScene(): Promise<LawnScene> {
   const basePlantY = plants.map((plant) => plant.y);
   const bucketZombie = createBucketZombie();
   layers.zombieLayer.addChild(bucketZombie.container);
+  const liveRewards = new Map<string, LiveRewardVisual>();
 
   let elapsed = 0;
   return {
     root,
+    setLiveRewards(events) {
+      const pendingIds = new Set(events.map((event) => event.event_id));
+      for (const [eventId, visual] of liveRewards) {
+        if (!pendingIds.has(eventId)) {
+          layers.rewardLayer.removeChild(visual.container);
+          visual.container.destroy({ children: true });
+          liveRewards.delete(eventId);
+        }
+      }
+      for (const event of events) {
+        if (liveRewards.has(event.event_id)) continue;
+        const visual = createLiveRewardEntity(event, onCollectLiveReward);
+        liveRewards.set(event.event_id, visual);
+        layers.rewardLayer.addChild(visual.container);
+      }
+    },
     update(deltaSeconds) {
       elapsed += deltaSeconds;
       plants.forEach((plant, index) => {
@@ -87,6 +109,9 @@ export async function createLawnScene(): Promise<LawnScene> {
         plant.scale.y = 1 + Math.sin(elapsed * 1.5 + index) * 0.012;
       });
       bucketZombie.advance(deltaSeconds);
+      for (const visual of liveRewards.values()) {
+        visual.update(elapsed);
+      }
     },
   };
 }

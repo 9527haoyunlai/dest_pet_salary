@@ -2,14 +2,18 @@ import { Application } from "pixi.js";
 
 import { calculateContainLayout, LOGICAL_SCENE_HEIGHT, LOGICAL_SCENE_WIDTH } from "./layout/contain";
 import { createLawnScene } from "./scene/createLawnScene";
+import type { LiveRewardEventDto } from "../../../shared/types";
 
 export interface PixiGameRuntime {
   canvas: HTMLCanvasElement;
   resize(width: number, height: number): void;
+  setLiveRewards(events: LiveRewardEventDto[]): void;
   destroy(): void;
 }
 
-export async function createPixiGameRuntime(): Promise<PixiGameRuntime> {
+export async function createPixiGameRuntime(
+  onCollectLiveReward: (eventId: string) => Promise<void>,
+): Promise<PixiGameRuntime> {
   const app = new Application();
   await app.init({
     width: LOGICAL_SCENE_WIDTH,
@@ -22,7 +26,7 @@ export async function createPixiGameRuntime(): Promise<PixiGameRuntime> {
 
   let scene;
   try {
-    scene = await createLawnScene();
+    scene = await createLawnScene(onCollectLiveReward);
   } catch (reason) {
     app.destroy({ removeView: true }, { children: true });
     throw reason;
@@ -48,6 +52,9 @@ export async function createPixiGameRuntime(): Promise<PixiGameRuntime> {
         left: `${layout.offsetX}px`,
         top: `${layout.offsetY}px`,
       });
+    },
+    setLiveRewards(events) {
+      scene.setLiveRewards(events);
     },
     destroy() {
       if (destroyed) return;

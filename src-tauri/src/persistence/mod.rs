@@ -4,6 +4,7 @@ mod sqlite;
 
 pub use error::PersistenceError;
 pub use models::{
-    CollectionLedgerEntry, DailyRewardState, OfflineRewardBag, PayrollCycleRecord, WalletTotals,
+    CollectionLedgerEntry, DailyRewardState, LiveRewardEvent, LiveRewardStatus, OfflineRewardBag,
+    PayrollCycleRecord, WalletTotals,
 };
 pub use sqlite::SqliteRepository;

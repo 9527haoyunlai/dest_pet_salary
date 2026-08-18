@@ -10,16 +10,44 @@ import {
   configurationFixture,
   settingsFixture,
   snapshotFixture,
+  liveRewardFixture,
 } from "./test/fixtures";
+
+vi.mock("./features/game/PixiGameScene", () => ({
+  PixiGameScene: ({
+    liveRewards,
+    onCollectLiveReward,
+  }: {
+    liveRewards: typeof liveRewardFixture[];
+    onCollectLiveReward: (eventId: string) => Promise<void>;
+  }) => (
+    <section aria-label="Mock Pixi lawn">
+      {liveRewards.map((event) => (
+        <button
+          type="button"
+          key={event.event_id}
+          onClick={() => {
+            void onCollectLiveReward(event.event_id).catch(() => undefined);
+          }}
+        >
+          Collect live {event.event_id}
+        </button>
+      ))}
+    </section>
+  ),
+}));
 
 vi.mock("./shared/tauri-api", () => ({
   claimOfflineRewardBag: vi.fn(),
+  collectLiveReward: vi.fn(),
   getAppSettings: vi.fn(),
   getAppSnapshot: vi.fn(),
   getCalendarMonth: vi.fn(),
   getSalaryConfiguration: vi.fn(),
   initializeSalary: vi.fn(),
   listOfflineRewardBags: vi.fn(),
+  listPendingLiveRewards: vi.fn(),
+  syncLiveRewards: vi.fn(),
   updateAppSettings: vi.fn(),
   updateNextCycleSalary: vi.fn(),
 }));
@@ -32,6 +60,8 @@ function setDefaultApiResponses() {
     calendarFixture(year, month),
   );
   vi.mocked(api.listOfflineRewardBags).mockResolvedValue([]);
+  vi.mocked(api.listPendingLiveRewards).mockResolvedValue([]);
+  vi.mocked(api.syncLiveRewards).mockResolvedValue([]);
   vi.mocked(api.updateAppSettings).mockImplementation(async (settings) => settings);
   vi.mocked(api.updateNextCycleSalary).mockResolvedValue(configurationFixture);
   vi.mocked(api.claimOfflineRewardBag).mockResolvedValue({
@@ -42,6 +72,15 @@ function setDefaultApiResponses() {
     counts: bagFixture.counts,
     exact_value: bagFixture.exact_value,
     created_at: "2026-08-17T10:01:00Z",
+  });
+  vi.mocked(api.collectLiveReward).mockResolvedValue({
+    transaction_id: "live-transaction-1",
+    cycle_id: liveRewardFixture.cycle_id,
+    source_type: "LIVE_REWARD_COLLECTION",
+    source_id: liveRewardFixture.event_id,
+    counts: { silver: 1, gold: 0, diamond: 0 },
+    exact_value: liveRewardFixture.exact_value,
+    created_at: "2026-08-17T02:00:11Z",
   });
 }
 
@@ -108,5 +147,39 @@ describe("Salary Garden product UI", () => {
     await user.click(screen.getByRole("button", { name: "Retry" }));
 
     expect(await screen.findByRole("heading", { name: "Real-time salary" })).toBeInTheDocument();
+  });
+
+  it("renders pending live rewards and settles only through the Rust command", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.listPendingLiveRewards).mockResolvedValue([liveRewardFixture]);
+    vi.mocked(api.syncLiveRewards)
+      .mockResolvedValueOnce([liveRewardFixture])
+      .mockResolvedValue([]);
+    render(<App />);
+
+    const coin = await screen.findByRole("button", {
+      name: `Collect live ${liveRewardFixture.event_id}`,
+    });
+    await user.click(coin);
+    await waitFor(() =>
+      expect(api.collectLiveReward).toHaveBeenCalledWith(liveRewardFixture.event_id),
+    );
+    await waitFor(() => expect(coin).not.toBeInTheDocument());
+    expect(api.getAppSnapshot).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a live reward visible when settlement fails", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.listPendingLiveRewards).mockResolvedValue([liveRewardFixture]);
+    vi.mocked(api.syncLiveRewards).mockResolvedValue([liveRewardFixture]);
+    vi.mocked(api.collectLiveReward).mockRejectedValue(new Error("database busy"));
+    render(<App />);
+
+    const coin = await screen.findByRole("button", {
+      name: `Collect live ${liveRewardFixture.event_id}`,
+    });
+    await user.click(coin);
+    expect(await screen.findByRole("alert")).toHaveTextContent("database busy");
+    expect(coin).toBeInTheDocument();
   });
 });

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PixiGameScene } from "./PixiGameScene";
 import type { PixiGameRuntime } from "./pixi/createGameApp";
+import { liveRewardFixture } from "../../test/fixtures";
 
 describe("PixiGameScene lifecycle", () => {
   it("mounts one canvas and destroys its runtime on unmount", async () => {
@@ -10,15 +11,30 @@ describe("PixiGameScene lifecycle", () => {
     const runtime: PixiGameRuntime = {
       canvas,
       resize: vi.fn(),
+      setLiveRewards: vi.fn(),
       destroy: vi.fn(),
     };
-    const createRuntime = vi.fn().mockResolvedValue(runtime);
-    const view = render(<PixiGameScene createRuntime={createRuntime} />);
+    let runtimeCollect!: (eventId: string) => Promise<void>;
+    const createRuntime = vi.fn().mockImplementation(async (onCollect) => {
+      runtimeCollect = onCollect;
+      return runtime;
+    });
+    const onCollectLiveReward = vi.fn().mockResolvedValue(undefined);
+    const view = render(
+      <PixiGameScene
+        liveRewards={[liveRewardFixture]}
+        onCollectLiveReward={onCollectLiveReward}
+        createRuntime={createRuntime}
+      />,
+    );
 
     const host = view.getByTestId("pixi-game-host");
     await waitFor(() => expect(host.querySelectorAll("canvas")).toHaveLength(1));
     expect(createRuntime).toHaveBeenCalledTimes(1);
     expect(runtime.resize).toHaveBeenCalledTimes(1);
+    expect(runtime.setLiveRewards).toHaveBeenCalledWith([liveRewardFixture]);
+    await runtimeCollect(liveRewardFixture.event_id);
+    expect(onCollectLiveReward).toHaveBeenCalledWith(liveRewardFixture.event_id);
 
     view.unmount();
     expect(runtime.destroy).toHaveBeenCalledTimes(1);
@@ -30,13 +46,20 @@ describe("PixiGameScene lifecycle", () => {
     const runtime: PixiGameRuntime = {
       canvas: document.createElement("canvas"),
       resize: vi.fn(),
+      setLiveRewards: vi.fn(),
       destroy: vi.fn(),
     };
     const createRuntime = () =>
       new Promise<PixiGameRuntime>((resolve) => {
         resolveRuntime = resolve;
       });
-    const view = render(<PixiGameScene createRuntime={createRuntime} />);
+    const view = render(
+      <PixiGameScene
+        liveRewards={[]}
+        onCollectLiveReward={vi.fn()}
+        createRuntime={createRuntime}
+      />,
+    );
     view.unmount();
     resolveRuntime(runtime);
 

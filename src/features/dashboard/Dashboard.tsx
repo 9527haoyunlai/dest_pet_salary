@@ -2,6 +2,7 @@ import type {
   AppSnapshotDto,
   OfflineRewardBagDto,
   WalletDisplayMode,
+  LiveRewardEventDto,
 } from "../../shared/types";
 import { PlantStatusBar } from "../../components/PlantStatusBar";
 import { PixiGameScene } from "../game/PixiGameScene";
@@ -16,6 +17,8 @@ interface DashboardProps {
   claimingBagId: string | null;
   onWalletModeChange: (mode: WalletDisplayMode) => void;
   onClaimBag: (bagId: string) => void;
+  liveRewards: LiveRewardEventDto[];
+  onCollectLiveReward: (eventId: string) => Promise<void>;
 }
 
 export function Dashboard({
@@ -25,13 +28,18 @@ export function Dashboard({
   claimingBagId,
   onWalletModeChange,
   onClaimBag,
+  liveRewards,
+  onCollectLiveReward,
 }: DashboardProps) {
   return (
     <div className="dashboard">
       <PlantStatusBar />
       <WorkStatus snapshot={snapshot} />
       <div className="dashboard-grid">
-        <PixiGameScene />
+        <PixiGameScene
+          liveRewards={liveRewards}
+          onCollectLiveReward={onCollectLiveReward}
+        />
         <WalletPanel
           snapshot={snapshot}
           mode={walletMode}

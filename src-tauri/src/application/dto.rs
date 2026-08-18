@@ -107,6 +107,35 @@ pub struct CollectionLedgerEntryDto {
     pub created_at: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum LiveRewardTypeDto {
+    Silver,
+    Gold,
+    Diamond,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum LiveRewardStatusDto {
+    Pending,
+    Collected,
+    Packaged,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct LiveRewardEventDto {
+    pub event_id: String,
+    pub cycle_id: String,
+    pub work_date: String,
+    pub effective_second_boundary: u64,
+    pub event_index: u64,
+    pub reward_type: LiveRewardTypeDto,
+    pub status: LiveRewardStatusDto,
+    pub exact_value: String,
+    pub created_at: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct SalaryCycleDto {
     pub cycle_id: String,

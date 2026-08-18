@@ -30,6 +30,9 @@ fn main() {
             salary_garden_core::commands::initialize_salary,
             salary_garden_core::commands::update_next_cycle_salary,
             salary_garden_core::commands::get_calendar_month,
+            salary_garden_core::commands::sync_live_rewards,
+            salary_garden_core::commands::list_pending_live_rewards,
+            salary_garden_core::commands::collect_live_reward,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Salary Garden");

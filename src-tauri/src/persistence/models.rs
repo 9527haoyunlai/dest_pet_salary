@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 
-use crate::domain::rewards::RewardCounts;
+use crate::domain::rewards::{RewardCounts, RewardType};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PayrollCycleRecord {
@@ -54,6 +54,38 @@ pub struct CollectionLedgerEntry {
     pub counts: RewardCounts,
     pub exact_value: Decimal,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LiveRewardStatus {
+    Pending,
+    Collected,
+    Packaged,
+}
+
+impl LiveRewardStatus {
+    pub fn as_code(self) -> &'static str {
+        match self {
+            Self::Pending => "PENDING",
+            Self::Collected => "COLLECTED",
+            Self::Packaged => "PACKAGED",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LiveRewardEvent {
+    pub event_id: String,
+    pub cycle_id: String,
+    pub work_date: NaiveDate,
+    pub effective_second_boundary: u64,
+    pub event_index: u64,
+    pub reward_type: RewardType,
+    pub status: LiveRewardStatus,
+    pub exact_value: Decimal,
+    pub created_at: DateTime<Utc>,
+    pub collected_at: Option<DateTime<Utc>>,
+    pub packaged_bag_id: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

@@ -3,7 +3,7 @@ use rust_decimal::Decimal;
 use crate::domain::payroll::PayrollCycle;
 
 use super::counts::{DIAMOND_WEIGHT, GOLD_WEIGHT};
-use super::RewardCounts;
+use super::{RewardCounts, RewardType};
 
 const WEIGHTED_UNITS_PER_HOUR: u64 = 1_014;
 const WORK_HOURS_PER_DAY: u64 = 7;
@@ -57,5 +57,13 @@ impl RewardValues {
         // summing UI-formatted denomination values. Whole-hour/day/cycle totals above
         // use their payroll anchors so the frozen SSOT invariants remain exact.
         self.hourly_pay * counts.weighted_units() / Decimal::from(WEIGHTED_UNITS_PER_HOUR)
+    }
+
+    pub fn value_for(self, reward_type: RewardType) -> Decimal {
+        match reward_type {
+            RewardType::Silver => self.silver,
+            RewardType::Gold => self.gold,
+            RewardType::Diamond => self.diamond,
+        }
     }
 }

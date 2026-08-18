@@ -65,6 +65,21 @@ export interface CollectionLedgerEntryDto {
   created_at: string;
 }
 
+export type LiveRewardType = "SILVER" | "GOLD" | "DIAMOND";
+export type LiveRewardStatus = "PENDING" | "COLLECTED" | "PACKAGED";
+
+export interface LiveRewardEventDto {
+  event_id: string;
+  cycle_id: string;
+  work_date: string;
+  effective_second_boundary: number;
+  event_index: number;
+  reward_type: LiveRewardType;
+  status: LiveRewardStatus;
+  exact_value: ExactDecimal;
+  created_at: string;
+}
+
 export type WalletDisplayMode = "REAL_SALARY" | "COLLECTED_WALLET";
 
 export interface AppSettingsDto {

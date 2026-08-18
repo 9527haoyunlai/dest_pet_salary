@@ -1,15 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 
 import { createPixiGameRuntime, type PixiGameRuntime } from "./pixi/createGameApp";
+import type { LiveRewardEventDto } from "../../shared/types";
 
 interface PixiGameSceneProps {
-  createRuntime?: () => Promise<PixiGameRuntime>;
+  liveRewards: LiveRewardEventDto[];
+  onCollectLiveReward: (eventId: string) => Promise<void>;
+  createRuntime?: (
+    onCollect: (eventId: string) => Promise<void>,
+  ) => Promise<PixiGameRuntime>;
 }
 
 export function PixiGameScene({
+  liveRewards,
+  onCollectLiveReward,
   createRuntime = createPixiGameRuntime,
 }: PixiGameSceneProps) {
   const hostRef = useRef<HTMLDivElement>(null);
+  const runtimeRef = useRef<PixiGameRuntime | null>(null);
+  const rewardsRef = useRef(liveRewards);
+  const collectRef = useRef(onCollectLiveReward);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -22,7 +32,7 @@ export function PixiGameScene({
     host.replaceChildren();
     setLoadError(null);
 
-    void createRuntime()
+    void createRuntime((eventId) => collectRef.current(eventId))
       .then((createdRuntime) => {
         if (cancelled) {
           createdRuntime.destroy();
@@ -30,6 +40,8 @@ export function PixiGameScene({
         }
 
         runtime = createdRuntime;
+        runtimeRef.current = createdRuntime;
+        createdRuntime.setLiveRewards(rewardsRef.current);
         host.replaceChildren(createdRuntime.canvas);
         const resize = () => {
           const bounds = host.getBoundingClientRect();
@@ -50,15 +62,25 @@ export function PixiGameScene({
       cancelled = true;
       resizeObserver?.disconnect();
       runtime?.destroy();
+      runtimeRef.current = null;
       host.replaceChildren();
     };
   }, [createRuntime]);
+
+  useEffect(() => {
+    rewardsRef.current = liveRewards;
+    runtimeRef.current?.setLiveRewards(liveRewards);
+  }, [liveRewards]);
+
+  useEffect(() => {
+    collectRef.current = onCollectLiveReward;
+  }, [onCollectLiveReward]);
 
   return (
     <section className="game-scene pixi-game-scene" aria-labelledby="scene-title">
       <h2 id="scene-title" className="visually-hidden">Salary Garden lawn</h2>
       <div ref={hostRef} className="pixi-game-host" data-testid="pixi-game-host" />
-      <span className="pixi-scene-badge" aria-hidden="true">PHASE 5A · 3×7 LAWN</span>
+      <span className="pixi-scene-badge" aria-hidden="true">PHASE 5B · LIVE REWARDS</span>
       {loadError ? (
         <p className="pixi-scene-error" role="alert">Scene unavailable: {loadError}</p>
       ) : null}

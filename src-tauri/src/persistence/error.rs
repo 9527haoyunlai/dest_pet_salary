@@ -18,6 +18,10 @@ pub enum PersistenceError {
     BagNotFound(String),
     #[error("offline reward bag `{0}` has already been claimed")]
     BagAlreadyClaimed(String),
+    #[error("live reward event `{0}` was not found")]
+    LiveRewardNotFound(String),
+    #[error("live reward event `{event_id}` is already settled as {status}")]
+    LiveRewardAlreadySettled { event_id: String, status: String },
     #[error("invalid reconciliation period: period_start is after period_end")]
     InvalidPeriod,
     #[error("duplicate daily entitlement for {0}")]

@@ -5,8 +5,10 @@ use chrono::{DateTime, NaiveDate, Utc};
 use crate::domain::payroll::{PayrollCycle, WORK_SECONDS_PER_DAY};
 use crate::domain::rewards::{RewardCounts, RewardValues};
 use crate::persistence::{
-    CollectionLedgerEntry, OfflineRewardBag, PersistenceError, SqliteRepository,
+    CollectionLedgerEntry, LiveRewardEvent, OfflineRewardBag, PersistenceError, SqliteRepository,
 };
+
+pub const MAX_PENDING_LIVE_REWARDS: usize = 12;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DailyEntitlement {
@@ -75,5 +77,48 @@ impl<'repository> RewardLedgerService<'repository> {
     ) -> Result<CollectionLedgerEntry, PersistenceError> {
         self.repository
             .claim_offline_bag_transaction(bag_id, claimed_at)
+    }
+
+    pub fn materialize_live_rewards(
+        &mut self,
+        cycle_id: &str,
+        cycle: &PayrollCycle,
+        work_date: NaiveDate,
+        effective_work_seconds: u64,
+        created_at: DateTime<Utc>,
+    ) -> Result<Vec<LiveRewardEvent>, PersistenceError> {
+        if effective_work_seconds > u64::from(WORK_SECONDS_PER_DAY) {
+            return Err(PersistenceError::EffectiveWorkSecondsOutOfRange {
+                work_date: work_date.to_string(),
+                seconds: effective_work_seconds,
+            });
+        }
+        self.repository
+            .ensure_payroll_cycle(cycle_id, cycle, created_at)?;
+        self.repository.materialize_live_rewards_transaction(
+            cycle_id,
+            work_date,
+            RewardCounts::from_work_seconds(effective_work_seconds),
+            RewardValues::for_cycle(cycle),
+            MAX_PENDING_LIVE_REWARDS,
+            created_at,
+        )
+    }
+
+    pub fn collect_live_reward(
+        &mut self,
+        event_id: &str,
+        collected_at: DateTime<Utc>,
+    ) -> Result<CollectionLedgerEntry, PersistenceError> {
+        self.repository
+            .collect_live_reward_transaction(event_id, collected_at)
+    }
+
+    pub fn package_pending_live_rewards(
+        &mut self,
+        packaged_at: DateTime<Utc>,
+    ) -> Result<Vec<OfflineRewardBag>, PersistenceError> {
+        self.repository
+            .package_pending_live_rewards_transaction(packaged_at)
     }
 }

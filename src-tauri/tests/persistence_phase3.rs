@@ -74,7 +74,7 @@ fn first_startup_migrations_cycle_snapshot_and_settings_are_idempotent() {
         .set_setting("launch_on_startup", "true", now + TimeDelta::seconds(1))
         .unwrap();
 
-    assert_eq!(repository.schema_version().unwrap(), 1);
+    assert_eq!(repository.schema_version().unwrap(), 2);
     assert_eq!(repository.payroll_cycle_count().unwrap(), 1);
     assert_eq!(first, second);
     assert_eq!(

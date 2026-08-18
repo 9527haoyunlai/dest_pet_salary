@@ -6,14 +6,19 @@ use crate::domain::payroll::{
     calculate_payroll_snapshot, effective_work_seconds, PayrollCycle, WorkCalendar,
     WORK_SECONDS_PER_DAY,
 };
-use crate::domain::rewards::{reward_snapshot_from_payroll, RewardCounts, RewardValues};
-use crate::persistence::{CollectionLedgerEntry, OfflineRewardBag, SqliteRepository};
+use crate::domain::rewards::{
+    reward_snapshot_from_payroll, RewardCounts, RewardType, RewardValues,
+};
+use crate::persistence::{
+    CollectionLedgerEntry, LiveRewardEvent, LiveRewardStatus, OfflineRewardBag, SqliteRepository,
+};
 use crate::services::{DailyEntitlement, RewardLedgerService};
 
 use super::{
     AppSettingsDto, AppSnapshotDto, ApplicationError, CollectedWalletDto, CollectionLedgerEntryDto,
-    OfflineRewardBagDto, OfflineSummaryDto, PayrollCycleDto, RealPayrollDto, RewardCountsDto,
-    RewardEntitlementDto, RewardValuesDto, WalletDisplayMode,
+    LiveRewardEventDto, LiveRewardStatusDto, LiveRewardTypeDto, OfflineRewardBagDto,
+    OfflineSummaryDto, PayrollCycleDto, RealPayrollDto, RewardCountsDto, RewardEntitlementDto,
+    RewardValuesDto, WalletDisplayMode,
 };
 
 const SETTING_WALLET_DISPLAY_MODE: &str = "wallet_display_mode";
@@ -158,6 +163,52 @@ impl<'repository> ApplicationService<'repository> {
     ) -> Result<CollectionLedgerEntryDto, ApplicationError> {
         let entry = RewardLedgerService::new(self.repository).claim_offline_bag(bag_id, at_utc)?;
         Ok(entry.into())
+    }
+
+    pub fn sync_live_rewards(
+        &mut self,
+        at_utc: DateTime<Utc>,
+    ) -> Result<Vec<LiveRewardEventDto>, ApplicationError> {
+        let payroll =
+            calculate_payroll_snapshot(&self.context.cycle, &self.context.calendar, at_utc)?;
+        let events = RewardLedgerService::new(self.repository).materialize_live_rewards(
+            &self.context.cycle_id,
+            &self.context.cycle,
+            payroll.local_datetime.date_naive(),
+            u64::from(payroll.effective_work_seconds_today),
+            at_utc,
+        )?;
+        Ok(events.into_iter().map(Into::into).collect())
+    }
+
+    pub fn list_pending_live_rewards(&self) -> Result<Vec<LiveRewardEventDto>, ApplicationError> {
+        Ok(self
+            .repository
+            .pending_live_rewards(&self.context.cycle_id)?
+            .into_iter()
+            .map(Into::into)
+            .collect())
+    }
+
+    pub fn collect_live_reward(
+        &mut self,
+        event_id: &str,
+        at_utc: DateTime<Utc>,
+    ) -> Result<CollectionLedgerEntryDto, ApplicationError> {
+        Ok(RewardLedgerService::new(self.repository)
+            .collect_live_reward(event_id, at_utc)?
+            .into())
+    }
+
+    pub fn package_pending_live_rewards(
+        &mut self,
+        at_utc: DateTime<Utc>,
+    ) -> Result<Vec<OfflineRewardBagDto>, ApplicationError> {
+        Ok(RewardLedgerService::new(self.repository)
+            .package_pending_live_rewards(at_utc)?
+            .into_iter()
+            .map(Into::into)
+            .collect())
     }
 
     pub fn get_app_settings(&self) -> Result<AppSettingsDto, ApplicationError> {
@@ -310,6 +361,30 @@ impl From<CollectionLedgerEntry> for CollectionLedgerEntryDto {
             source_type: value.source_type,
             source_id: value.source_id,
             counts: value.counts.into(),
+            exact_value: value.exact_value.to_string(),
+            created_at: value.created_at.to_rfc3339(),
+        }
+    }
+}
+
+impl From<LiveRewardEvent> for LiveRewardEventDto {
+    fn from(value: LiveRewardEvent) -> Self {
+        Self {
+            event_id: value.event_id,
+            cycle_id: value.cycle_id,
+            work_date: value.work_date.to_string(),
+            effective_second_boundary: value.effective_second_boundary,
+            event_index: value.event_index,
+            reward_type: match value.reward_type {
+                RewardType::Silver => LiveRewardTypeDto::Silver,
+                RewardType::Gold => LiveRewardTypeDto::Gold,
+                RewardType::Diamond => LiveRewardTypeDto::Diamond,
+            },
+            status: match value.status {
+                LiveRewardStatus::Pending => LiveRewardStatusDto::Pending,
+                LiveRewardStatus::Collected => LiveRewardStatusDto::Collected,
+                LiveRewardStatus::Packaged => LiveRewardStatusDto::Packaged,
+            },
             exact_value: value.exact_value.to_string(),
             created_at: value.created_at.to_rfc3339(),
         }

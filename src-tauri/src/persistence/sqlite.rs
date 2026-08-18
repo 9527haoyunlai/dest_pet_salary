@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
@@ -9,17 +10,23 @@ use rust_decimal::Decimal;
 use uuid::Uuid;
 
 use crate::domain::payroll::PayrollCycle;
-use crate::domain::rewards::{RewardCounts, RewardValues};
+use crate::domain::rewards::{RewardCounts, RewardType, RewardValues};
 
 use super::{
-    CollectionLedgerEntry, DailyRewardState, OfflineRewardBag, PayrollCycleRecord,
-    PersistenceError, WalletTotals,
+    CollectionLedgerEntry, DailyRewardState, LiveRewardEvent, LiveRewardStatus, OfflineRewardBag,
+    PayrollCycleRecord, PersistenceError, WalletTotals,
 };
 
-const MIGRATIONS: &[(i64, &str)] = &[(
-    1,
-    include_str!("../../migrations/0001_phase3_persistence.sql"),
-)];
+const MIGRATIONS: &[(i64, &str)] = &[
+    (
+        1,
+        include_str!("../../migrations/0001_phase3_persistence.sql"),
+    ),
+    (
+        2,
+        include_str!("../../migrations/0002_phase5b_live_rewards.sql"),
+    ),
+];
 
 pub struct SqliteRepository {
     connection: Connection,
@@ -163,6 +170,10 @@ impl SqliteRepository {
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         transaction.execute(
             "DELETE FROM collection_ledger WHERE cycle_id = ?1",
+            params![cycle_id],
+        )?;
+        transaction.execute(
+            "DELETE FROM live_reward_events WHERE cycle_id = ?1",
             params![cycle_id],
         )?;
         transaction.execute(
@@ -370,10 +381,405 @@ impl SqliteRepository {
         self.table_count("collection_ledger")
     }
 
+    pub fn live_reward_event(
+        &self,
+        event_id: &str,
+    ) -> Result<Option<LiveRewardEvent>, PersistenceError> {
+        Ok(self
+            .connection
+            .query_row(
+                "SELECT event_id, cycle_id, work_date, effective_second_boundary,
+                    event_index, reward_type, status, exact_value, created_at,
+                    collected_at, packaged_bag_id
+                 FROM live_reward_events WHERE event_id = ?1",
+                params![event_id],
+                live_reward_from_row,
+            )
+            .optional()?)
+    }
+
+    pub fn pending_live_rewards(
+        &self,
+        cycle_id: &str,
+    ) -> Result<Vec<LiveRewardEvent>, PersistenceError> {
+        let mut statement = self.connection.prepare(
+            "SELECT event_id, cycle_id, work_date, effective_second_boundary,
+                event_index, reward_type, status, exact_value, created_at,
+                collected_at, packaged_bag_id
+             FROM live_reward_events
+             WHERE cycle_id = ?1 AND status = 'PENDING'
+             ORDER BY work_date, event_index",
+        )?;
+        let rows = statement.query_map(params![cycle_id], live_reward_from_row)?;
+        let mut events = Vec::new();
+        for row in rows {
+            events.push(row?);
+        }
+        Ok(events)
+    }
+
+    pub fn live_reward_event_count(
+        &self,
+        status: Option<LiveRewardStatus>,
+    ) -> Result<u64, PersistenceError> {
+        let count: i64 = if let Some(status) = status {
+            self.connection.query_row(
+                "SELECT COUNT(*) FROM live_reward_events WHERE status = ?1",
+                params![status.as_code()],
+                |row| row.get(0),
+            )?
+        } else {
+            self.connection
+                .query_row("SELECT COUNT(*) FROM live_reward_events", [], |row| {
+                    row.get(0)
+                })?
+        };
+        u64::try_from(count).map_err(|_| PersistenceError::CountOutOfRange)
+    }
+
     fn table_count(&self, table: &'static str) -> Result<u64, PersistenceError> {
         let sql = format!("SELECT COUNT(*) FROM {table}");
         let count: i64 = self.connection.query_row(&sql, [], |row| row.get(0))?;
         u64::try_from(count).map_err(|_| PersistenceError::CountOutOfRange)
+    }
+
+    pub(crate) fn materialize_live_rewards_transaction(
+        &mut self,
+        cycle_id: &str,
+        work_date: NaiveDate,
+        entitled: RewardCounts,
+        values: RewardValues,
+        pending_cap: usize,
+        created_at: DateTime<Utc>,
+    ) -> Result<Vec<LiveRewardEvent>, PersistenceError> {
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let entitled_sql = counts_to_sql(entitled)?;
+        transaction.execute(
+            "INSERT INTO daily_reward_state (
+                cycle_id, work_date, entitled_silver, entitled_gold, entitled_diamond, updated_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(cycle_id, work_date) DO UPDATE SET
+                entitled_silver = MAX(entitled_silver, excluded.entitled_silver),
+                entitled_gold = MAX(entitled_gold, excluded.entitled_gold),
+                entitled_diamond = MAX(entitled_diamond, excluded.entitled_diamond),
+                updated_at = MAX(updated_at, excluded.updated_at)",
+            params![
+                cycle_id,
+                work_date.to_string(),
+                entitled_sql.0,
+                entitled_sql.1,
+                entitled_sql.2,
+                timestamp(created_at),
+            ],
+        )?;
+
+        let accounted = transaction.query_row(
+            "SELECT accounted_silver, accounted_gold, accounted_diamond
+             FROM daily_reward_state WHERE cycle_id = ?1 AND work_date = ?2",
+            params![cycle_id, work_date.to_string()],
+            |row| counts_from_row(row, 0),
+        )?;
+        let accounted_events = accounted.total_events();
+        let accounted_seconds = accounted_events
+            .checked_mul(10)
+            .ok_or(PersistenceError::CountOutOfRange)?;
+        if RewardCounts::from_work_seconds(accounted_seconds) != accounted {
+            return Err(PersistenceError::InvariantViolation(
+                "accounted rewards are not a deterministic event prefix",
+            ));
+        }
+
+        let pending_count: i64 = transaction.query_row(
+            "SELECT COUNT(*) FROM live_reward_events
+             WHERE cycle_id = ?1 AND status = 'PENDING'",
+            params![cycle_id],
+            |row| row.get(0),
+        )?;
+        let pending_count =
+            usize::try_from(pending_count).map_err(|_| PersistenceError::CountOutOfRange)?;
+        let capacity = pending_cap.saturating_sub(pending_count);
+        let entitled_events = entitled.total_events();
+        let create_count = usize::try_from(entitled_events.saturating_sub(accounted_events))
+            .unwrap_or(usize::MAX)
+            .min(capacity);
+
+        for offset in 0..create_count {
+            let event_index = accounted_events
+                .checked_add(u64::try_from(offset).map_err(|_| PersistenceError::CountOutOfRange)?)
+                .and_then(|value| value.checked_add(1))
+                .ok_or(PersistenceError::CountOutOfRange)?;
+            let reward_type = RewardType::for_event_index(event_index).ok_or(
+                PersistenceError::InvariantViolation("invalid live reward event index"),
+            )?;
+            let boundary = event_index
+                .checked_mul(10)
+                .ok_or(PersistenceError::CountOutOfRange)?;
+            let event_id = format!("{cycle_id}:{work_date}:{event_index}");
+            let inserted = transaction.execute(
+                "INSERT OR IGNORE INTO live_reward_events (
+                    event_id, cycle_id, work_date, effective_second_boundary, event_index,
+                    reward_type, status, exact_value, created_at, collected_at, packaged_bag_id
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'PENDING', ?7, ?8, NULL, NULL)",
+                params![
+                    event_id,
+                    cycle_id,
+                    work_date.to_string(),
+                    i64::try_from(boundary).map_err(|_| PersistenceError::CountOutOfRange)?,
+                    i64::try_from(event_index).map_err(|_| PersistenceError::CountOutOfRange)?,
+                    reward_type.as_code(),
+                    values.value_for(reward_type).to_string(),
+                    timestamp(created_at),
+                ],
+            )?;
+            if inserted != 1 {
+                return Err(PersistenceError::InvariantViolation(
+                    "deterministic live reward event already exists outside accounted prefix",
+                ));
+            }
+
+            let increment = counts_to_sql(reward_type.counts())?;
+            let updated = transaction.execute(
+                "UPDATE daily_reward_state SET
+                    accounted_silver = accounted_silver + ?3,
+                    accounted_gold = accounted_gold + ?4,
+                    accounted_diamond = accounted_diamond + ?5,
+                    updated_at = ?6
+                 WHERE cycle_id = ?1 AND work_date = ?2
+                    AND accounted_silver + ?3 <= entitled_silver
+                    AND accounted_gold + ?4 <= entitled_gold
+                    AND accounted_diamond + ?5 <= entitled_diamond",
+                params![
+                    cycle_id,
+                    work_date.to_string(),
+                    increment.0,
+                    increment.1,
+                    increment.2,
+                    timestamp(created_at),
+                ],
+            )?;
+            if updated != 1 {
+                return Err(PersistenceError::InvariantViolation(
+                    "live materialization would exceed entitlement",
+                ));
+            }
+        }
+
+        transaction.commit()?;
+        self.pending_live_rewards(cycle_id)
+    }
+
+    pub(crate) fn collect_live_reward_transaction(
+        &mut self,
+        event_id: &str,
+        collected_at: DateTime<Utc>,
+    ) -> Result<CollectionLedgerEntry, PersistenceError> {
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let event = transaction
+            .query_row(
+                "SELECT event_id, cycle_id, work_date, effective_second_boundary,
+                    event_index, reward_type, status, exact_value, created_at,
+                    collected_at, packaged_bag_id
+                 FROM live_reward_events WHERE event_id = ?1",
+                params![event_id],
+                live_reward_from_row,
+            )
+            .optional()?
+            .ok_or_else(|| PersistenceError::LiveRewardNotFound(event_id.to_owned()))?;
+        if event.status != LiveRewardStatus::Pending {
+            return Err(PersistenceError::LiveRewardAlreadySettled {
+                event_id: event_id.to_owned(),
+                status: event.status.as_code().to_owned(),
+            });
+        }
+
+        let updated = transaction.execute(
+            "UPDATE live_reward_events SET status = 'COLLECTED', collected_at = ?2
+             WHERE event_id = ?1 AND status = 'PENDING'",
+            params![event_id, timestamp(collected_at)],
+        )?;
+        if updated != 1 {
+            return Err(PersistenceError::LiveRewardAlreadySettled {
+                event_id: event_id.to_owned(),
+                status: "SETTLED".to_owned(),
+            });
+        }
+
+        let counts = event.reward_type.counts();
+        let counts_sql = counts_to_sql(counts)?;
+        let collected = transaction.execute(
+            "UPDATE daily_reward_state SET
+                collected_silver = collected_silver + ?3,
+                collected_gold = collected_gold + ?4,
+                collected_diamond = collected_diamond + ?5,
+                updated_at = ?6
+             WHERE cycle_id = ?1 AND work_date = ?2
+                AND collected_silver + ?3 <= accounted_silver
+                AND collected_gold + ?4 <= accounted_gold
+                AND collected_diamond + ?5 <= accounted_diamond",
+            params![
+                event.cycle_id,
+                event.work_date.to_string(),
+                counts_sql.0,
+                counts_sql.1,
+                counts_sql.2,
+                timestamp(collected_at),
+            ],
+        )?;
+        if collected != 1 {
+            return Err(PersistenceError::InvariantViolation(
+                "live collection would exceed accounted rewards",
+            ));
+        }
+
+        let entry = CollectionLedgerEntry {
+            transaction_id: Uuid::new_v4().to_string(),
+            cycle_id: event.cycle_id,
+            source_type: "LIVE_REWARD_COLLECTION".to_owned(),
+            source_id: event.event_id,
+            counts,
+            exact_value: event.exact_value,
+            created_at: collected_at,
+        };
+        transaction.execute(
+            "INSERT INTO collection_ledger (
+                transaction_id, cycle_id, source_type, source_id, silver_count,
+                gold_count, diamond_count, exact_value, created_at
+             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                entry.transaction_id,
+                entry.cycle_id,
+                entry.source_type,
+                entry.source_id,
+                counts_sql.0,
+                counts_sql.1,
+                counts_sql.2,
+                entry.exact_value.to_string(),
+                timestamp(entry.created_at),
+            ],
+        )?;
+        transaction.commit()?;
+        Ok(entry)
+    }
+
+    pub(crate) fn package_pending_live_rewards_transaction(
+        &mut self,
+        packaged_at: DateTime<Utc>,
+    ) -> Result<Vec<OfflineRewardBag>, PersistenceError> {
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let pending = {
+            let mut statement = transaction.prepare(
+                "SELECT event_id, cycle_id, work_date, effective_second_boundary,
+                    event_index, reward_type, status, exact_value, created_at,
+                    collected_at, packaged_bag_id
+                 FROM live_reward_events WHERE status = 'PENDING'
+                 ORDER BY cycle_id, work_date, event_index",
+            )?;
+            let rows = statement.query_map([], live_reward_from_row)?;
+            let mut events = Vec::new();
+            for row in rows {
+                events.push(row?);
+            }
+            events
+        };
+
+        let mut by_cycle: BTreeMap<String, Vec<LiveRewardEvent>> = BTreeMap::new();
+        for event in pending {
+            by_cycle
+                .entry(event.cycle_id.clone())
+                .or_default()
+                .push(event);
+        }
+
+        let mut bags = Vec::new();
+        for (cycle_id, events) in by_cycle {
+            let counts = events
+                .iter()
+                .try_fold(RewardCounts::default(), |total, event| {
+                    checked_add_counts(total, event.reward_type.counts())
+                })?;
+            let exact_value = events
+                .iter()
+                .fold(Decimal::ZERO, |total, event| total + event.exact_value);
+            let period_start = events
+                .iter()
+                .map(|event| event.created_at)
+                .min()
+                .unwrap_or(packaged_at)
+                .min(packaged_at);
+            let bag = OfflineRewardBag {
+                bag_id: Uuid::new_v4().to_string(),
+                cycle_id: cycle_id.clone(),
+                period_start,
+                period_end: packaged_at,
+                counts,
+                exact_value,
+                created_at: packaged_at,
+                claimed: false,
+                claimed_at: None,
+            };
+            let counts_sql = counts_to_sql(counts)?;
+            transaction.execute(
+                "INSERT INTO offline_reward_bags (
+                    bag_id, cycle_id, period_start, period_end, silver_count, gold_count,
+                    diamond_count, exact_value, created_at, claimed, claimed_at
+                 ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, NULL)",
+                params![
+                    bag.bag_id,
+                    bag.cycle_id,
+                    timestamp(bag.period_start),
+                    timestamp(bag.period_end),
+                    counts_sql.0,
+                    counts_sql.1,
+                    counts_sql.2,
+                    bag.exact_value.to_string(),
+                    timestamp(bag.created_at),
+                ],
+            )?;
+
+            let mut items: BTreeMap<NaiveDate, RewardCounts> = BTreeMap::new();
+            for event in &events {
+                let current = items.entry(event.work_date).or_default();
+                *current = checked_add_counts(*current, event.reward_type.counts())?;
+            }
+            for (work_date, item_counts) in items {
+                let item_sql = counts_to_sql(item_counts)?;
+                transaction.execute(
+                    "INSERT INTO offline_reward_bag_items (
+                        bag_id, work_date, silver_count, gold_count, diamond_count
+                     ) VALUES (?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        bag.bag_id,
+                        work_date.to_string(),
+                        item_sql.0,
+                        item_sql.1,
+                        item_sql.2,
+                    ],
+                )?;
+            }
+            for event in &events {
+                let updated = transaction.execute(
+                    "UPDATE live_reward_events
+                     SET status = 'PACKAGED', packaged_bag_id = ?2
+                     WHERE event_id = ?1 AND status = 'PENDING'",
+                    params![event.event_id, bag.bag_id],
+                )?;
+                if updated != 1 {
+                    return Err(PersistenceError::InvariantViolation(
+                        "pending live reward changed during packaging",
+                    ));
+                }
+            }
+            bags.push(bag);
+        }
+
+        transaction.commit()?;
+        Ok(bags)
     }
 
     pub(crate) fn reconcile_offline_transaction(
@@ -721,6 +1127,48 @@ fn ledger_from_row(row: &Row<'_>) -> rusqlite::Result<CollectionLedgerEntry> {
         exact_value: decimal_from_column(row, 7)?,
         created_at: datetime_from_column(row, 8)?,
     })
+}
+
+fn live_reward_from_row(row: &Row<'_>) -> rusqlite::Result<LiveRewardEvent> {
+    let reward_type_code: String = row.get(5)?;
+    let reward_type = match reward_type_code.as_str() {
+        "SILVER" => RewardType::Silver,
+        "GOLD" => RewardType::Gold,
+        "DIAMOND" => RewardType::Diamond,
+        _ => return Err(invalid_code(5, "reward type", &reward_type_code)),
+    };
+    let status_code: String = row.get(6)?;
+    let status = match status_code.as_str() {
+        "PENDING" => LiveRewardStatus::Pending,
+        "COLLECTED" => LiveRewardStatus::Collected,
+        "PACKAGED" => LiveRewardStatus::Packaged,
+        _ => return Err(invalid_code(6, "live reward status", &status_code)),
+    };
+
+    Ok(LiveRewardEvent {
+        event_id: row.get(0)?,
+        cycle_id: row.get(1)?,
+        work_date: date_from_column(row, 2)?,
+        effective_second_boundary: nonnegative_u64(row, 3)?,
+        event_index: nonnegative_u64(row, 4)?,
+        reward_type,
+        status,
+        exact_value: decimal_from_column(row, 7)?,
+        created_at: datetime_from_column(row, 8)?,
+        collected_at: optional_datetime_from_column(row, 9)?,
+        packaged_bag_id: row.get(10)?,
+    })
+}
+
+fn invalid_code(index: usize, field: &str, value: &str) -> rusqlite::Error {
+    rusqlite::Error::FromSqlConversionFailure(
+        index,
+        Type::Text,
+        Box::new(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("invalid {field}: {value}"),
+        )),
+    )
 }
 
 fn counts_to_sql(counts: RewardCounts) -> Result<(i64, i64, i64), PersistenceError> {

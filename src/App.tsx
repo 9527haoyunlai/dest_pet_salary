@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAppSnapshot } from "./app/hooks/useAppSnapshot";
+import { useLiveRewards } from "./app/hooks/useLiveRewards";
 import { PvzSkinSurface } from "./app/PvzSkinSurface";
 import { pvzUiAssets } from "./assets/pvz-ui";
 import { ErrorState } from "./components/ErrorState";
@@ -91,6 +92,10 @@ function AppContent() {
 
   const initialized = configuration?.is_initialized === true;
   const snapshotState = useAppSnapshot(initialized);
+  const refreshAfterLiveSettlement = useCallback(async () => {
+    await snapshotState.refresh();
+  }, [snapshotState.refresh]);
+  const liveRewardsState = useLiveRewards(initialized, refreshAfterLiveSettlement);
 
   const loadApplication = useCallback(async () => {
     setLoading(true);
@@ -120,6 +125,22 @@ function AppContent() {
   useEffect(() => {
     void loadApplication();
   }, [loadApplication]);
+
+  useEffect(() => {
+    if (!initialized) return;
+    const reconcileAfterResume = () => {
+      if (document.visibilityState !== "visible") return;
+      void liveRewardsState.sync().then(async () => {
+        setBags(await listOfflineRewardBags());
+      });
+    };
+    window.addEventListener("focus", reconcileAfterResume);
+    document.addEventListener("visibilitychange", reconcileAfterResume);
+    return () => {
+      window.removeEventListener("focus", reconcileAfterResume);
+      document.removeEventListener("visibilitychange", reconcileAfterResume);
+    };
+  }, [initialized, liveRewardsState.sync]);
 
   const claimBag = async (bagId: string) => {
     setClaimingBagId(bagId);
@@ -170,7 +191,7 @@ function AppContent() {
           </span>
           <span>
             <strong>Salary Garden</strong>
-            <small>Phase 5A · PixiJS Core Scene</small>
+            <small>Phase 5B · Live Reward Settlement</small>
           </span>
         </div>
         <nav className="primary-navigation" aria-label="Primary navigation">
@@ -188,16 +209,22 @@ function AppContent() {
         <button
           type="button"
           className="refresh-button"
-          onClick={() => void snapshotState.refresh()}
+          onClick={() => {
+            void Promise.all([
+              snapshotState.refresh(),
+              liveRewardsState.sync(),
+              listOfflineRewardBags().then(setBags),
+            ]);
+          }}
           aria-label="Refresh salary snapshot"
         >
           Refresh
         </button>
       </header>
 
-      {actionError || snapshotState.error ? (
+      {actionError || snapshotState.error || liveRewardsState.error ? (
         <div className="error-banner" role="alert">
-          <span>{actionError ?? snapshotState.error}</span>
+          <span>{actionError ?? snapshotState.error ?? liveRewardsState.error}</span>
           <button type="button" onClick={() => setActionError(null)}>Dismiss</button>
         </div>
       ) : null}
@@ -211,6 +238,8 @@ function AppContent() {
             claimingBagId={claimingBagId}
             onWalletModeChange={setWalletMode}
             onClaimBag={(bagId) => void claimBag(bagId)}
+            liveRewards={liveRewardsState.events}
+            onCollectLiveReward={liveRewardsState.collect}
           />
         ) : null}
         {view === "calendar" ? (

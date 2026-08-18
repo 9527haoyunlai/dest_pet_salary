@@ -5,6 +5,7 @@ import type {
   AppSnapshotDto,
   CalendarMonthDto,
   CollectionLedgerEntryDto,
+  LiveRewardEventDto,
   OfflineRewardBagDto,
   SalaryConfigurationDto,
 } from "./types";
@@ -60,4 +61,18 @@ export function getCalendarMonth(
   month: number,
 ): Promise<CalendarMonthDto> {
   return invoke<CalendarMonthDto>("get_calendar_month", { year, month });
+}
+
+export function syncLiveRewards(): Promise<LiveRewardEventDto[]> {
+  return invoke<LiveRewardEventDto[]>("sync_live_rewards");
+}
+
+export function listPendingLiveRewards(): Promise<LiveRewardEventDto[]> {
+  return invoke<LiveRewardEventDto[]>("list_pending_live_rewards");
+}
+
+export function collectLiveReward(
+  eventId: string,
+): Promise<CollectionLedgerEntryDto> {
+  return invoke<CollectionLedgerEntryDto>("collect_live_reward", { eventId });
 }
